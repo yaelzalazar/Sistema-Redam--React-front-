@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Consultar Deudores - Re.D.A.M</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <img src="https://rpd-testing.jus.mendoza.gov.ar/vub/pres/imagenes/logo-drp.png"
+             alt="Poder Judicial Mendoza">
+    </div>
+    <div class="header-right">
+        <span>Bienvenido: <strong>Yael Zalazar</strong></span>
+    </div>
+</header>
+
+<main class="container">
+
+<h1>Mi Oficina</h1>
+
+<div class="cards top-cards">
+    <div class="card">
+        <img src="img/consulta.png" alt="Consultar">
+        <h3>Consultar deudores alimentarios</h3>
+        <p>
+            La consulta a la Base de Datos del Registro de Deudores
+            Alimentarios Morosos es libre y de acceso gratuito Ley 8326.
+        </p>
+    </div>
+
+    <div class="card">
+        <img src="img/ayuda.png" alt="Normativa">
+        <h3>Normativa</h3>
+        <p>
+            - Ley 6897. 26 de febrero del 2001<br>
+            - Ley 8326. 27 de julio de 2011<br>
+            - Acordada 24.325. 19 de junio de 2012
+        </p>
+    </div>
+</div>
+
+<!-- ================= BUSQUEDA ================= -->
+
+<div id="bloqueBusqueda" class="search-card">
+
+    <div class="search-title">
+        <img src="img/datos.png" alt="Buscar">
+        <span>Buscar por Documento / Nombre y Apellido</span>
+    </div>
+
+    <form class="search-form">
+        <div class="form-group">
+            <label>Documento:</label>
+            <input id="dni" type="text">
+        </div>
+
+        <div class="form-group">
+            <label>Nombre:</label>
+            <input id="nombre" type="text">
+        </div>
+
+        <div class="form-group">
+            <label>Apellido:</label>
+            <input id="apellido" type="text">
+        </div>
+
+        <div class="botones-form">
+            <button type="button" id="btnBuscar">Buscar</button>
+            <button type="button" onclick="window.location.href='index.html'">Volver</button>
+        </div>
+    </form>
+
+    <div id="mensajeNoResultados" class="mensaje-no-resultados" style="display:none;">
+        <div class="mensaje-contenido">
+            <div class="icono-resultado">🔍</div>
+            <h3>No se han encontrado resultados</h3>
+            <p>Verifique los datos ingresados e intente nuevamente.</p>
+        </div>
+    </div>
+
+</div>
+
+<!-- ================= DETALLE ================= -->
+
+<div id="bloqueDetalle" class="search-card" style="display:none;">
+
+    <div class="search-title">
+        <span>Detalle del Registro</span>
+    </div>
+
+    <div id="paginacion" class="paginacion-container" style="display:none;">
+        <button type="button" id="btnAnterior" class="btn-paginacion">&#10094;</button>
+        <span id="contadorResultados" class="contador-paginacion"></span>
+        <button type="button" id="btnSiguiente" class="btn-paginacion">&#10095;</button>
+    </div>
+
+    <!-- CAMPOS -->
+    <div class="form-group"><label>Provincia:</label><input id="detalleProvincia" type="text" readonly></div>
+    <div class="form-group"><label>Tribunal:</label><input id="detalleTribunal" type="text" readonly></div>
+    <div class="form-group"><label>Nombre Deudor:</label><input id="detalleNombreDeudor" type="text" readonly></div>
+    <div class="form-group"><label>Apellido Deudor:</label><input id="detalleApellidoDeudor" type="text" readonly></div>
+    <div class="form-group"><label>Tipo Doc Deudor:</label><input id="detalleTipoDocDeudor" type="text" readonly></div>
+    <div class="form-group"><label>DNI Deudor:</label><input id="detalleDniDeudor" type="text" readonly></div>
+    <div class="form-group"><label>Número Expediente:</label><input id="detalleNumeroExpediente" type="text" readonly></div>
+    <div class="form-group"><label>Motivo:</label><input id="detalleMotivo" type="text" readonly></div>
+    <div class="form-group"><label>Monto:</label><input id="detalleMonto" type="text" readonly></div>
+    <div class="form-group"><label>Banco:</label><input id="detalleBanco" type="text" readonly></div>
+    <div class="form-group"><label>Nombre Demandante:</label><input id="detalleNombreDemandante" type="text" readonly></div>
+    <div class="form-group"><label>Apellido Demandante:</label><input id="detalleApellidoDemandante" type="text" readonly></div>
+    <div class="form-group"><label>Tipo Doc Demandante:</label><input id="detalleTipoDocDemandante" type="text" readonly></div>
+    <div class="form-group"><label>DNI Demandante:</label><input id="detalleDniDemandante" type="text" readonly></div>
+    <div class="form-group"><label>Observaciones:</label><input id="detalleObservaciones" type="text" readonly></div>
+
+    <div id="mensajeExito" class="mensaje-no-resultados" style="display:none;">
+        <div class="mensaje-contenido exito">
+            <div class="icono-resultado">✔</div>
+            <h3>Registro actualizado correctamente</h3>
+            <p>Los datos fueron modificados con éxito.</p>
+        </div>
+    </div>
+
+    <!--CONFIRMAR ELIMINAR -->
+    <div id="modalConfirmarEliminar" class="mensaje-no-resultados" style="display:none; margin-top:20px;">
+        <div class="mensaje-contenido">
+            <div class="icono-resultado">⚠</div>
+            <h3>¿Está seguro que desea eliminar este deudor?</h3>
+            <p>Esta acción no se puede deshacer.</p>
+            <div style="margin-top:20px; display:flex; justify-content:center; gap:15px;">
+                <button id="btnConfirmarEliminar">Sí, eliminar</button>
+                <button id="btnCancelarEliminar">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="botones-form" style="margin-top:30px;">
+        <button type="button" id="btnModificar">Modificar datos</button>
+        <button type="button" id="btnEliminar">Eliminar deudor</button>
+        <button type="button" id="btnGuardarCambios" style="display:none;">Guardar cambios</button>
+        <button type="button" onclick="window.location.href='index.html'">Volver</button>
+    </div>
+
+</div>
+
+    <!-- MENSAJE ELIMINADO GLOBAL -->
+    <div id="mensajeEliminadoGlobal" class="mensaje-no-resultados" style="display:none; margin-top:20px;">
+        <div class="mensaje-contenido exito">
+            <div class="icono-resultado">🗑</div>
+            <h3>Registro eliminado correctamente</h3>
+            <p>El deudor seleccionado fue eliminado del sistema.</p>
+        </div>
+    </div>
+
+</main>
+
+<script>
+
+let resultados = [];
+let indiceActual = 0;
+let registroId = null;
+
+/* REFERENCIAS CORRECTAS */
+const btnAnterior = document.getElementById("btnAnterior");
+const btnSiguiente = document.getElementById("btnSiguiente");
+const contadorResultados = document.getElementById("contadorResultados");
+const btnModificar = document.getElementById("btnModificar");
+const btnGuardarCambios = document.getElementById("btnGuardarCambios");
+const btnEliminar = document.getElementById("btnEliminar");
+const modalConfirmarEliminar = document.getElementById("modalConfirmarEliminar");
+const btnConfirmarEliminar = document.getElementById("btnConfirmarEliminar");
+const btnCancelarEliminar = document.getElementById("btnCancelarEliminar");
+
+/* ================= BUSCAR ================= */
+
+document.getElementById("btnBuscar").addEventListener("click", function() {
+
+    const dni = document.getElementById("dni").value.trim();
+    const nombre = document.getElementById("nombre").value.trim();
+    const apellido = document.getElementById("apellido").value.trim();
+
+    if (!dni || !nombre || !apellido) {
+        alert("Todos los campos son obligatorios");
+        return;
+    }
+
+    document.getElementById("mensajeNoResultados").style.display = "none";
+
+    fetch(`http://localhost:8089/api/v1/registro-redam?dni=${dni}&nombre=${nombre}&apellido=${apellido}`)
+        .then(res => res.json())
+        .then(response => {
+
+            if (!response.flag || !response.data || response.data.length === 0) {
+                document.getElementById("mensajeNoResultados").style.display = "block";
+                return;
+            }
+
+            resultados = response.data;
+            indiceActual = 0;
+
+            document.getElementById("bloqueBusqueda").style.display = "none";
+            document.getElementById("bloqueDetalle").style.display = "block";
+            document.getElementById("paginacion").style.display = "flex";
+
+            mostrarRegistro();
+        });
+});
+
+/* ================= MOSTRAR ================= */
+
+function mostrarRegistro() {
+
+    const registro = resultados[indiceActual];
+    registroId = registro.id;
+
+    detalleProvincia.value = registro.provincia || "";
+    detalleTribunal.value = registro.tribunal || "";
+    detalleNombreDeudor.value = registro.nombreDeudor || "";
+    detalleApellidoDeudor.value = registro.apellidoDeudor || "";
+    detalleTipoDocDeudor.value = registro.tipoDocDeudor || "";
+    detalleDniDeudor.value = registro.dniDeudor || "";
+    detalleNumeroExpediente.value = registro.numeroExpediente || "";
+    detalleMotivo.value = registro.motivo || "";
+    detalleMonto.value = registro.monto || "";
+    detalleBanco.value = registro.banco || "";
+    detalleNombreDemandante.value = registro.nombreDemandante || "";
+    detalleApellidoDemandante.value = registro.apellidoDemandante || "";
+    detalleTipoDocDemandante.value = registro.tipoDocDemandante || "";
+    detalleDniDemandante.value = registro.dniDemandante || "";
+    detalleObservaciones.value = registro.observaciones || "";
+
+    contadorResultados.innerText =
+        `Resultado ${indiceActual + 1} de ${resultados.length}`;
+
+    btnAnterior.disabled = indiceActual === 0;
+    btnSiguiente.disabled = indiceActual === resultados.length - 1;
+}
+
+/* ================= PAGINACION ================= */
+
+btnAnterior.addEventListener("click", function () {
+    if (indiceActual > 0) {
+        indiceActual--;
+        mostrarRegistro();
+    }
+});
+
+btnSiguiente.addEventListener("click", function () {
+    if (indiceActual < resultados.length - 1) {
+        indiceActual++;
+        mostrarRegistro();
+    }
+});
+
+/* ================= MODIFICAR ================= */
+
+btnModificar.addEventListener("click", function () {
+
+    document.querySelectorAll("#bloqueDetalle input")
+        .forEach(input => input.removeAttribute("readonly"));
+
+    btnModificar.style.display = "none";
+    btnGuardarCambios.style.display = "inline-block";
+});
+
+/* ================= GUARDAR ================= */
+
+btnGuardarCambios.addEventListener("click", function () {
+
+    const inputs = document.querySelectorAll("#bloqueDetalle input");
+
+    for (let input of inputs) {
+        if (!input.value.trim()) {
+            alert("No puede haber campos vacíos");
+            return;
+        }
+    }
+
+    const datos = {
+        provincia: detalleProvincia.value,
+        tribunal: detalleTribunal.value,
+        nombreDeudor: detalleNombreDeudor.value,
+        apellidoDeudor: detalleApellidoDeudor.value,
+        tipoDocDeudor: detalleTipoDocDeudor.value,
+        dniDeudor: detalleDniDeudor.value,
+        numeroExpediente: detalleNumeroExpediente.value,
+        motivo: detalleMotivo.value,
+        monto: detalleMonto.value,
+        banco: detalleBanco.value,
+        nombreDemandante: detalleNombreDemandante.value,
+        apellidoDemandante: detalleApellidoDemandante.value,
+        tipoDocDemandante: detalleTipoDocDemandante.value,
+        dniDemandante: detalleDniDemandante.value,
+        observaciones: detalleObservaciones.value
+    };
+
+    fetch(`http://localhost:8089/api/v1/registro-redam/${registroId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(datos)
+    })
+    .then(res => res.json())
+    .then(response => {
+
+        if (response.flag) {
+
+            const mensaje = document.getElementById("mensajeExito");
+            mensaje.style.display = "block";
+
+            setTimeout(() => {
+                mensaje.style.display = "none";
+            }, 3000);
+
+            resultados[indiceActual] = { ...resultados[indiceActual], ...datos };
+
+            inputs.forEach(input => input.setAttribute("readonly", true));
+
+            btnModificar.style.display = "inline-block";
+            btnGuardarCambios.style.display = "none";
+        }
+    });
+});
+
+/* ================= ELIMINAR ================= */
+
+btnEliminar.addEventListener("click", function () {
+    modalConfirmarEliminar.style.display = "block";
+});
+
+btnCancelarEliminar.addEventListener("click", function () {
+    modalConfirmarEliminar.style.display = "none";
+});
+
+btnConfirmarEliminar.addEventListener("click", function () {
+
+    modalConfirmarEliminar.style.display = "none";
+
+    fetch(`http://localhost:8089/api/v1/registro-redam/${registroId}`, {
+        method: "DELETE"
+    })
+    .then(response => {
+
+        if (response.ok) {
+
+            const mensajeGlobal = document.getElementById("mensajeEliminadoGlobal");
+
+            if (mensajeGlobal) {
+                mensajeGlobal.style.display = "block";
+                setTimeout(() => {
+                    mensajeGlobal.style.display = "none";
+                }, 5000);
+            }
+
+            resultados.splice(indiceActual, 1);
+
+            if (resultados.length === 0) {
+                document.getElementById("bloqueDetalle").style.display = "none";
+                document.getElementById("bloqueBusqueda").style.display = "block";
+                return;
+            }
+
+            if (indiceActual >= resultados.length) {
+                indiceActual = resultados.length - 1;
+            }
+
+            mostrarRegistro();
+        }
+        else {
+            alert("No se pudo eliminar el registro");
+        }
+
+    })
+    .catch(() => alert("Error al conectar con el servidor"));
+});
+//-------------------------------------------------------------------------------------------------------
+</script>
+
+</body>
+</html>
