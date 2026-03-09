@@ -30,6 +30,7 @@ function ConsultarPage() {
   const [resultados, setResultados] = useState([]);
   const [indiceActual, setIndiceActual] = useState(0);
   const [noResultados, setNoResultados] = useState(false);
+  const [mensajeBusqueda, setMensajeBusqueda] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
@@ -65,8 +66,8 @@ function ConsultarPage() {
 
   const handleBuscar = async () => {
     const dni = search.dni.trim();
-    const nombre = search.nombre.trim();
-    const apellido = search.apellido.trim();
+    const nombre = search.nombre.trim().toUpperCase();
+    const apellido = search.apellido.trim().toUpperCase();
 
     if (!dni || !nombre || !apellido) {
       alert("Todos los campos son obligatorios");
@@ -74,26 +75,35 @@ function ConsultarPage() {
     }
 
     setNoResultados(false);
+    setMensajeBusqueda("");
 
     try {
       const query = new URLSearchParams({ dni, nombre, apellido });
       const response = await fetch(`${API_URL}?${query.toString()}`);
       const body = await response.json();
+      const data = Array.isArray(body?.data) ? body.data : [];
+      const isSuccess = response.ok && body?.flag && Number(body?.status) === 200;
 
-      if (!body.flag || !body.data || body.data.length === 0) {
+      if (!isSuccess || data.length === 0) {
         setResultados([]);
         setIndiceActual(0);
         setNoResultados(true);
+        setMensajeBusqueda(body?.message || "No se han encontrado resultados");
+        setIsEditing(false);
         return;
       }
 
-      setResultados(body.data);
+      setResultados(data);
       setIndiceActual(0);
       setNoResultados(false);
+      setMensajeBusqueda("");
       setIsEditing(false);
     } catch {
       setResultados([]);
+      setIndiceActual(0);
       setNoResultados(true);
+      setMensajeBusqueda("Error al conectar con el servidor");
+      setIsEditing(false);
     }
   };
 
@@ -250,7 +260,7 @@ function ConsultarPage() {
                 <div className="mensaje-contenido">
                   <div className="icono-resultado">🔍</div>
                   <h3>No se han encontrado resultados</h3>
-                  <p>Verifique los datos ingresados e intente nuevamente.</p>
+                  <p>{mensajeBusqueda || "Verifique los datos ingresados e intente nuevamente."}</p>
                 </div>
               </div>
             )}
