@@ -31,12 +31,17 @@ function ConsultarPage() {
   const [indiceActual, setIndiceActual] = useState(0);
   const [noResultados, setNoResultados] = useState(false);
   const [mensajeBusqueda, setMensajeBusqueda] = useState("");
+  const [mensajeValidacion, setMensajeValidacion] = useState("");
+  const [direccionPaginacion, setDireccionPaginacion] = useState("siguiente");
+  const [isLeaving, setIsLeaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   const updateTimeoutRef = useRef(null);
   const deleteTimeoutRef = useRef(null);
+  const leaveTimeoutRef = useRef(null);
+  const validationTimeoutRef = useRef(null);
 
   const hasResults = resultados.length > 0;
   const registroActual = useMemo(() => resultados[indiceActual] || null, [resultados, indiceActual]);
@@ -49,8 +54,26 @@ function ConsultarPage() {
       if (deleteTimeoutRef.current) {
         clearTimeout(deleteTimeoutRef.current);
       }
+      if (leaveTimeoutRef.current) {
+        clearTimeout(leaveTimeoutRef.current);
+      }
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+      }
     };
   }, []);
+
+  const showValidationMessage = (text) => {
+    setMensajeValidacion(text);
+
+    if (validationTimeoutRef.current) {
+      clearTimeout(validationTimeoutRef.current);
+    }
+
+    validationTimeoutRef.current = setTimeout(() => {
+      setMensajeValidacion("");
+    }, 4500);
+  };
 
   const handleSearchChange = (event) => {
     const { name, value } = event.target;
@@ -64,18 +87,41 @@ function ConsultarPage() {
     );
   };
 
+  const handlePaginaAnterior = () => {
+    setDireccionPaginacion("anterior");
+    setIndiceActual((prev) => prev - 1);
+  };
+
+  const handlePaginaSiguiente = () => {
+    setDireccionPaginacion("siguiente");
+    setIndiceActual((prev) => prev + 1);
+  };
+
+  const handleVolver = () => {
+    setIsLeaving(true);
+
+    if (leaveTimeoutRef.current) {
+      clearTimeout(leaveTimeoutRef.current);
+    }
+
+    leaveTimeoutRef.current = setTimeout(() => {
+      navigate("/");
+    }, 280);
+  };
+
   const handleBuscar = async () => {
     const dni = search.dni.trim();
     const nombre = search.nombre.trim().toUpperCase();
     const apellido = search.apellido.trim().toUpperCase();
 
     if (!dni || !nombre || !apellido) {
-      alert("Todos los campos son obligatorios");
+      showValidationMessage("Todos los campos son obligatorios");
       return;
     }
 
     setNoResultados(false);
     setMensajeBusqueda("");
+    setMensajeValidacion("");
 
     try {
       const query = new URLSearchParams({ dni, nombre, apellido });
@@ -190,7 +236,7 @@ function ConsultarPage() {
   return (
     <>
       <Header fallbackUsername="Yael Zalazar" />
-      <main className="container">
+      <main className={`container${isLeaving ? " page-leaving" : ""}`}>
         <h1>Mi Oficina</h1>
 
         <div className="cards top-cards">
@@ -249,18 +295,26 @@ function ConsultarPage() {
                 <button type="button" onClick={handleBuscar}>
                   Buscar
                 </button>
-                <button type="button" onClick={() => navigate("/")}>
+                <button type="button" onClick={handleVolver}>
                   Volver
                 </button>
               </div>
             </form>
 
+            {mensajeValidacion && (
+              <div className="mensaje-no-resultados">
+                <div className="mensaje-contenido validacion-obligatoria">
+                  <div className="icono-resultado">!</div>
+                  <h3>{mensajeValidacion}</h3>
+                </div>
+              </div>
+            )}
+
             {noResultados && (
               <div className="mensaje-no-resultados">
-                <div className="mensaje-contenido">
+                <div className="mensaje-contenido no-encontrado">
                   <div className="icono-resultado">🔍</div>
                   <h3>No se han encontrado resultados</h3>
-                  <p>{mensajeBusqueda || "Verifique los datos ingresados e intente nuevamente."}</p>
                 </div>
               </div>
             )}
@@ -277,7 +331,7 @@ function ConsultarPage() {
               <button
                 type="button"
                 className="btn-paginacion"
-                onClick={() => setIndiceActual((prev) => prev - 1)}
+                onClick={handlePaginaAnterior}
                 disabled={indiceActual === 0}
               >
                 &#10094;
@@ -288,25 +342,30 @@ function ConsultarPage() {
               <button
                 type="button"
                 className="btn-paginacion"
-                onClick={() => setIndiceActual((prev) => prev + 1)}
+                onClick={handlePaginaSiguiente}
                 disabled={indiceActual === resultados.length - 1}
               >
                 &#10095;
               </button>
             </div>
 
-            {detailFields.map((field) => (
-              <div className="form-group" key={field.key}>
-                <label>{field.label}:</label>
-                <input
-                  name={field.key}
-                  type="text"
-                  value={registroActual[field.key] ?? ""}
-                  onChange={handleDetailChange}
-                  readOnly={!isEditing}
-                />
-              </div>
-            ))}
+            <div
+              key={registroActual.id ?? indiceActual}
+              className={`detalle-paginado detalle-${direccionPaginacion}`}
+            >
+              {detailFields.map((field) => (
+                <div className="form-group" key={field.key}>
+                  <label>{field.label}:</label>
+                  <input
+                    name={field.key}
+                    type="text"
+                    value={registroActual[field.key] ?? ""}
+                    onChange={handleDetailChange}
+                    readOnly={!isEditing}
+                  />
+                </div>
+              ))}
+            </div>
 
             {showUpdateSuccess && (
               <div id="mensajeExito" className="mensaje-no-resultados">
@@ -350,7 +409,7 @@ function ConsultarPage() {
                   Guardar cambios
                 </button>
               )}
-              <button type="button" onClick={() => navigate("/")}>
+              <button type="button" onClick={handleVolver}>
                 Volver
               </button>
             </div>

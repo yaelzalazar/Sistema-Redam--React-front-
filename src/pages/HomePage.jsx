@@ -1,17 +1,42 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 
 function HomePage() {
+  const navigate = useNavigate();
+  const [isLeaving, setIsLeaving] = useState(false);
+  const leaveTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (leaveTimeoutRef.current) {
+        clearTimeout(leaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleCardClick = (event, path) => {
+    event.preventDefault();
+    setIsLeaving(true);
+
+    if (leaveTimeoutRef.current) {
+      clearTimeout(leaveTimeoutRef.current);
+    }
+
+    leaveTimeoutRef.current = setTimeout(() => {
+      navigate(path);
+    }, 280);
+  };
+
   return (
     <>
       <Header />
-      <main className="container">
+      <main className={`container${isLeaving ? " page-leaving" : ""}`}>
         <h1>Mi Oficina</h1>
         <p className="subtitle">Accede a los diferentes procesos y servicios de tu oficina</p>
 
         <div className="cards">
-          <Link to="/consultar" className="card-link">
+          <Link to="/consultar" className="card-link" onClick={(event) => handleCardClick(event, "/consultar")}>
             <div className="card">
               <img src="/img/consulta.png" alt="Consultar" />
               <h3>Consultar deudores alimentarios</h3>
@@ -23,7 +48,7 @@ function HomePage() {
             </div>
           </Link>
 
-          <Link to="/cargar" className="card-link">
+          <Link to="/cargar" className="card-link" onClick={(event) => handleCardClick(event, "/cargar")}>
             <div className="card">
               <img src="/img/cargar.png" alt="Cargar" />
               <h3>Cargar deudores alimentarios</h3>
@@ -35,7 +60,7 @@ function HomePage() {
             </div>
           </Link>
 
-          <Link to="/editar" className="card-link cargar-card">
+          <Link to="/editar" className="card-link cargar-card" onClick={(event) => handleCardClick(event, "/editar")}>
             <div className="card">
               <img src="/img/editar.png" alt="Editar" />
               <h3>Editar Deudores Morosos</h3>
