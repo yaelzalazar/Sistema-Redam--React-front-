@@ -72,36 +72,62 @@ body {
 
 .card {
     background-color: #f2f2f2;
-    border-radius: 10px;
+    border-radius: 14px;
     padding: 25px;
     min-height: 180px;
     position: relative;
-    /*cursor: pointer;*/
+    overflow: hidden;
     border: 1px solid #e0e0e0;
-    transition: 0.2s ease;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+    transition: transform 0.28s ease, box-shadow 0.28s ease, background-color 0.28s ease, border-color 0.28s ease;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.05);
 }
 
-.card:hover {
-    background-color: #e9e9e9;
-    transform: translateY(-2px);
+.card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(17, 92, 183, 0.96) 0%, rgba(13, 80, 166, 0.96) 100%);
+    opacity: 0;
+    transition: opacity 0.28s ease;
+    z-index: 0;
+}
+
+.card-link:hover .card,
+.card-link:focus-visible .card {
+    border-color: #0d57b6;
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 18px 34px rgba(13, 87, 182, 0.22);
+}
+
+.card-link:hover .card::before,
+.card-link:focus-visible .card::before {
+    opacity: 1;
 }
 
 .card img {
     width: 40px;
     margin-bottom: 15px;
+    position: relative;
+    z-index: 1;
+    transition: transform 0.28s ease;
 }
 
 .card h3 {
     font-size: 16px;
     margin-bottom: 10px;
     color: #555;
+    position: relative;
+    z-index: 1;
+    transition: color 0.28s ease;
 }
 
 .card p {
     font-size: 13px;
     line-height: 1.5;
     color: #666;
+    position: relative;
+    z-index: 1;
+    transition: color 0.28s ease;
 }
 
 .card .link {
@@ -110,12 +136,29 @@ body {
     right: 20px;
     font-size: 12px;
     color: #777;
+    z-index: 1;
+    transition: color 0.28s ease;
 }
 
 .card-link {
     text-decoration: none;
     color: inherit;
     display: block;
+    border-radius: 14px;
+}
+
+.card-link:hover .card img,
+.card-link:focus-visible .card img {
+    transform: scale(1.08);
+}
+
+.card-link:hover .card h3,
+.card-link:hover .card p,
+.card-link:hover .card .link,
+.card-link:focus-visible .card h3,
+.card-link:focus-visible .card p,
+.card-link:focus-visible .card .link {
+    color: #f7fbff;
 }
 
 .cargar-card { 
@@ -211,6 +254,21 @@ body {
 .form-group input[readonly] {
     background-color: #f5f5f5;
     cursor: not-allowed;
+}
+
+.label-invalido {
+    color: #c54a4a;
+    font-weight: 600;
+}
+
+.form-group input.input-invalido {
+    border-color: #d86161;
+    background: linear-gradient(180deg, #fff7f7 0%, #fffdfd 100%);
+    box-shadow: 0 0 0 3px rgba(216, 97, 97, 0.12);
+}
+
+.form-group input.input-invalido:focus {
+    border-color: #c54a4a;
 }
 /* Más espacio entre campos del detalle */
 #bloqueDetalle .form-group {
@@ -453,6 +511,34 @@ button:active {
     color: #d74848;
 }
 
+.mensaje-contenido.exito-compacto {
+    background: linear-gradient(145deg, #effbf1, #fbfffc);
+    border: 1px solid #b9dfc0;
+    box-shadow: 0 6px 16px rgba(43, 137, 73, 0.1);
+    padding: 20px 22px;
+    animation: exitoSlideDown 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mensaje-contenido.exito-compacto h3 {
+    color: #2e8b57;
+    margin-bottom: 0;
+    font-size: 17px;
+}
+
+.mensaje-contenido.exito-compacto .icono-resultado {
+    width: 38px;
+    height: 38px;
+    margin: 0 auto 10px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 800;
+    background: linear-gradient(180deg, #47b36c 0%, #2e8b57 100%);
+    box-shadow: 0 8px 16px rgba(46, 139, 87, 0.18);
+}
+
 .mensaje-contenido.validacion-obligatoria {
     background: linear-gradient(145deg, #fff5f5, #fffdfd);
     border: 1px solid #efc3c3;
@@ -592,6 +678,7 @@ button:active {
     background: linear-gradient(145deg, #e8fff1, #ffffff);
     border: 1px solid #b7f0c8;
     box-shadow: 0 6px 16px rgba(0, 122, 51, 0.08);
+    animation: exitoSlideDown 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .mensaje-contenido.exito h3 {
@@ -600,6 +687,20 @@ button:active {
 
 .mensaje-contenido.exito .icono-resultado {
     color: #007a33;
+}
+
+@keyframes exitoSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-18px) scale(0.985);
+        filter: blur(3px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
 }
 
 .tarjeta-exito-3d {

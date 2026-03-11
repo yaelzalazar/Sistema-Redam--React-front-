@@ -1,15 +1,330 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Header from "../components/Header";
+
+const API_URL = "http://localhost:8089/api/v1/registro-redam";
+
+const initialForm = {
+  provincia: "MENDOZA",
+  tribunal: "TERCER JUZGADO DE PAZ PRIMERA CIRCUNSCRIPCIÓN",
+  dniDeudor: "",
+  numeroExpediente: "",
+  motivo: "",
+  monto: "",
+  banco: "",
+  nombreDemandante: "",
+  apellidoDemandante: "",
+  tipoDocDemandante: "DNI",
+  dniDemandante: "",
+  observaciones: ""
+};
+
+const requiredFields = [
+  "dniDeudor",
+  "numeroExpediente",
+  "nombreDemandante",
+  "apellidoDemandante",
+  "tipoDocDemandante",
+  "dniDemandante"
+];
 
 function EditarPage() {
+  const navigate = useNavigate();
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [form, setForm] = useState(initialForm);
+  const [invalidFields, setInvalidFields] = useState([]);
+  const [message, setMessage] = useState({
+    visible: false,
+    type: "error",
+    title: "",
+    text: ""
+  });
+  const leaveTimeoutRef = useRef(null);
+  const messageTimeoutRef = useRef(null);
+  const messageRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (leaveTimeoutRef.current) {
+        clearTimeout(leaveTimeoutRef.current);
+      }
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (message.visible && message.type === "exito" && messageRef.current) {
+      messageRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [message]);
+
+  const showMessage = (type, title, text) => {
+    if (messageTimeoutRef.current) {
+      clearTimeout(messageTimeoutRef.current);
+    }
+
+    setMessage({ visible: true, type, title, text });
+
+    messageTimeoutRef.current = setTimeout(() => {
+      setMessage((prev) => ({ ...prev, visible: false }));
+    }, type === "exito" ? 10000 : 8000);
+  };
+
+  const handleVolver = () => {
+    setIsLeaving(true);
+
+    if (leaveTimeoutRef.current) {
+      clearTimeout(leaveTimeoutRef.current);
+    }
+
+    leaveTimeoutRef.current = setTimeout(() => {
+      navigate("/");
+    }, 280);
+  };
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    let nextValue = value;
+
+    if (name === "dniDeudor" || name === "dniDemandante" || name === "monto") {
+      nextValue = value.replace(/\D/g, "");
+    } else {
+      nextValue = value.toUpperCase();
+    }
+
+    setInvalidFields((prev) => prev.filter((field) => field !== name));
+    setForm((prev) => ({ ...prev, [name]: nextValue }));
+  };
+
+  const handleGuardar = async () => {
+    const missingFields = requiredFields.filter((field) => !String(form[field] ?? "").trim());
+
+    if (missingFields.length > 0) {
+      setInvalidFields(missingFields);
+      showMessage(
+        "error",
+        "Complete todos los datos requeridos para cargar el demandante.",
+        "Complete todos los datos requeridos para cargar el demandante."
+      );
+      return;
+    }
+
+    setInvalidFields([]);
+
+    const payload = {
+      provincia: form.provincia.trim(),
+      tribunal: form.tribunal.trim(),
+      dniDeudor: form.dniDeudor.trim(),
+      numeroExpediente: form.numeroExpediente.trim().toUpperCase(),
+      motivo: form.motivo.trim(),
+      monto: form.monto.trim(),
+      banco: form.banco.trim(),
+      nombreDemandante: form.nombreDemandante.trim(),
+      apellidoDemandante: form.apellidoDemandante.trim(),
+      tipoDocDemandante: form.tipoDocDemandante.trim(),
+      dniDemandante: form.dniDemandante.trim(),
+      observaciones: form.observaciones.trim()
+    };
+
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const body = await response.json();
+
+      if (response.ok && body.flag === true) {
+        showMessage(
+          "exito",
+          "Datos del demandante cargados correctamente",
+          body.message || "Datos del demandante cargados correctamente"
+        );
+        setForm(initialForm);
+        return;
+      }
+
+      showMessage(
+        "error",
+        "No se pudo cargar el demandante",
+        body.message || "No se pudo cargar el demandante. Intente nuevamente mas tarde."
+      );
+    } catch {
+      showMessage(
+        "error",
+        "Error de conexion",
+        "No se pudo cargar el demandante en este momento. Intente nuevamente mas tarde."
+      );
+    }
+  };
+
   return (
-    <main className="container">
-      <h1>Editar Deudores Morosos</h1>
-      <p className="subtitle">Esta seccion estara disponible proximamente.</p>
-      <Link to="/" className="card-link">
-        Volver a Mi Oficina
-      </Link>
-    </main>
+    <>
+      <Header fallbackUsername="Yael Zalazar" />
+      <main className={`container${isLeaving ? " page-leaving" : ""}`}>
+        <h1>Mi Oficina</h1>
+
+        <div className="cards top-cards">
+          <div className="card">
+            <img src="/img/consulta.png" alt="Consultar" />
+            <h3>Registro del demandante</h3>
+            <p>
+              Este formulario registra al demandante con sus datos basicos para la nueva version
+              del servicio REDAM.
+            </p>
+          </div>
+
+          <div className="card">
+            <img src="/img/ayuda.png" alt="Normativa" />
+            <h3>Normativa</h3>
+            <p>
+              - Ley 6897. 26 de febrero del 2001
+              <br />
+              - Ley 8326. 27 de julio de 2011
+              <br />- Acordada 24.325. 19 de junio de 2012
+            </p>
+          </div>
+        </div>
+
+        <div className="search-card">
+          <div className="search-title">
+            <img src="/img/datos.png" alt="Formulario" />
+            <span>Cargar Demandante</span>
+          </div>
+
+          <form className="search-form" onSubmit={(event) => event.preventDefault()}>
+            <div className="form-group">
+              <label>Provincia:</label>
+              <input name="provincia" type="text" value={form.provincia} readOnly />
+            </div>
+            <div className="form-group">
+              <label>Tribunal:</label>
+              <input name="tribunal" type="text" value={form.tribunal} readOnly />
+            </div>
+            <div className="form-group">
+              <label className={invalidFields.includes("dniDeudor") ? "label-invalido" : ""}>
+                DNI Deudor:
+              </label>
+              <input
+                name="dniDeudor"
+                type="text"
+                value={form.dniDeudor}
+                onChange={handleChange}
+                className={invalidFields.includes("dniDeudor") ? "input-invalido" : ""}
+              />
+            </div>
+            <div className="form-group">
+              <label className={invalidFields.includes("numeroExpediente") ? "label-invalido" : ""}>
+                Numero Expediente:
+              </label>
+              <input
+                name="numeroExpediente"
+                type="text"
+                value={form.numeroExpediente}
+                onChange={handleChange}
+                className={invalidFields.includes("numeroExpediente") ? "input-invalido" : ""}
+              />
+            </div>
+            <div className="form-group">
+              <label>Motivo:</label>
+              <input name="motivo" type="text" value={form.motivo} onChange={handleChange} />
+            </div>
+            <div className="form-group">
+              <label>Monto:</label>
+              <input name="monto" type="text" value={form.monto} onChange={handleChange} />
+            </div>
+            <div className="form-group">
+              <label>Banco:</label>
+              <input name="banco" type="text" value={form.banco} onChange={handleChange} />
+            </div>
+            <div className="form-group">
+              <label className={invalidFields.includes("tipoDocDemandante") ? "label-invalido" : ""}>
+                Tipo Doc Demandante:
+              </label>
+              <input
+                name="tipoDocDemandante"
+                type="text"
+                value={form.tipoDocDemandante}
+                readOnly
+                className={invalidFields.includes("tipoDocDemandante") ? "input-invalido" : ""}
+              />
+            </div>
+            <div className="form-group">
+              <label className={invalidFields.includes("dniDemandante") ? "label-invalido" : ""}>
+                DNI Demandante:
+              </label>
+              <input
+                name="dniDemandante"
+                type="text"
+                value={form.dniDemandante}
+                onChange={handleChange}
+                className={invalidFields.includes("dniDemandante") ? "input-invalido" : ""}
+              />
+            </div>
+            <div className="form-group">
+              <label className={invalidFields.includes("nombreDemandante") ? "label-invalido" : ""}>
+                Nombre Demandante:
+              </label>
+              <input
+                name="nombreDemandante"
+                type="text"
+                value={form.nombreDemandante}
+                onChange={handleChange}
+                className={invalidFields.includes("nombreDemandante") ? "input-invalido" : ""}
+              />
+            </div>
+            <div className="form-group">
+              <label className={invalidFields.includes("apellidoDemandante") ? "label-invalido" : ""}>
+                Apellido Demandante:
+              </label>
+              <input
+                name="apellidoDemandante"
+                type="text"
+                value={form.apellidoDemandante}
+                onChange={handleChange}
+                className={invalidFields.includes("apellidoDemandante") ? "input-invalido" : ""}
+              />
+            </div>
+            <div className="form-group">
+              <label>Observaciones:</label>
+              <input
+                name="observaciones"
+                type="text"
+                value={form.observaciones}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="botones-form">
+              <button type="button" onClick={handleGuardar}>
+                Cargar demandante
+              </button>
+              <button type="button" onClick={handleVolver}>
+                Volver
+              </button>
+            </div>
+          </form>
+
+          {message.visible && (
+            <div className="mensaje-no-resultados" ref={messageRef}>
+              <div
+                className={`mensaje-contenido ${
+                  message.type === "exito"
+                    ? "exito exito-compacto"
+                    : "error validacion-obligatoria"
+                }`}
+              >
+                <div className="icono-resultado">{message.type === "exito" ? "\u2713" : "!"}</div>
+                <h3>{message.title}</h3>
+                {message.text && message.text !== message.title && <p>{message.text}</p>}
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </>
   );
 }
 

@@ -17,6 +17,7 @@ function CargarPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [invalidFields, setInvalidFields] = useState([]);
   const [message, setMessage] = useState({
     visible: false,
     type: "error",
@@ -25,6 +26,7 @@ function CargarPage() {
   });
   const timeoutRef = useRef(null);
   const leaveTimeoutRef = useRef(null);
+  const messageRef = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -36,6 +38,12 @@ function CargarPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (message.visible && message.type === "exito" && messageRef.current) {
+      messageRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [message]);
 
   const showMessage = (type, title, text) => {
     if (timeoutRef.current) {
@@ -53,20 +61,20 @@ function CargarPage() {
     const { name, value } = event.target;
     const nextValue = name === "docDeudor" ? value.replace(/\D/g, "") : value.toUpperCase();
 
+    setInvalidFields((prev) => prev.filter((field) => field !== name));
     setForm((prev) => ({ ...prev, [name]: nextValue }));
   };
 
   const handleGuardar = async () => {
-    for (const field of requiredFields) {
-      if (!String(form[field] ?? "").trim()) {
-        showMessage(
-          "error",
-          "Todos los campos son obligatorios",
-          "Complete todos los datos requeridos para cargar el deudor."
-        );
-        return;
-      }
+    const missingFields = requiredFields.filter((field) => !String(form[field] ?? "").trim());
+
+    if (missingFields.length > 0) {
+      setInvalidFields(missingFields);
+      showMessage("error", "Todos los campos son obligatorios", "");
+      return;
     }
+
+    setInvalidFields([]);
 
     const payload = {
       tipoDocDeudor: form.tipoDocDeudor,
@@ -153,35 +161,52 @@ function CargarPage() {
 
           <form className="search-form" onSubmit={(event) => event.preventDefault()}>
             <div className="form-group">
-              <label>Tipo Doc. Deudor:</label>
-              <input name="tipoDocDeudor" type="text" value={form.tipoDocDeudor} readOnly />
+              <label className={invalidFields.includes("tipoDocDeudor") ? "label-invalido" : ""}>
+                Tipo Doc. Deudor:
+              </label>
+              <input
+                name="tipoDocDeudor"
+                type="text"
+                value={form.tipoDocDeudor}
+                readOnly
+                className={invalidFields.includes("tipoDocDeudor") ? "input-invalido" : ""}
+              />
             </div>
             <div className="form-group">
-              <label>DNI Deudor:</label>
+              <label className={invalidFields.includes("docDeudor") ? "label-invalido" : ""}>
+                DNI Deudor:
+              </label>
               <input
                 name="docDeudor"
                 type="text"
                 value={form.docDeudor}
                 onChange={handleChange}
                 inputMode="numeric"
+                className={invalidFields.includes("docDeudor") ? "input-invalido" : ""}
               />
             </div>
             <div className="form-group">
-              <label>Nombres Deudor:</label>
+              <label className={invalidFields.includes("nombresDeudor") ? "label-invalido" : ""}>
+                Nombres Deudor:
+              </label>
               <input
                 name="nombresDeudor"
                 type="text"
                 value={form.nombresDeudor}
                 onChange={handleChange}
+                className={invalidFields.includes("nombresDeudor") ? "input-invalido" : ""}
               />
             </div>
             <div className="form-group">
-              <label>Apellidos Deudor:</label>
+              <label className={invalidFields.includes("apellidosDeudor") ? "label-invalido" : ""}>
+                Apellidos Deudor:
+              </label>
               <input
                 name="apellidosDeudor"
                 type="text"
                 value={form.apellidosDeudor}
                 onChange={handleChange}
+                className={invalidFields.includes("apellidosDeudor") ? "input-invalido" : ""}
               />
             </div>
 
@@ -196,11 +221,11 @@ function CargarPage() {
           </form>
 
           {message.visible && (
-            <div className="mensaje-no-resultados">
+            <div className="mensaje-no-resultados" ref={messageRef}>
               <div
                 className={`mensaje-contenido ${
                   message.type === "exito"
-                    ? "exito tarjeta-exito-3d"
+                    ? "exito exito-compacto"
                     : "error validacion-obligatoria"
                 }`}
               >
