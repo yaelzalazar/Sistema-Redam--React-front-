@@ -228,6 +228,7 @@ body {
     display: flex;
     align-items: center;
     gap: 15px;
+    width: 100%;
 }
 
 .form-group label {
@@ -236,8 +237,9 @@ body {
     color: #444;
 }
 
-.form-group input {
+.form-group input:not([type="radio"]) {
     flex: 1;
+    min-width: 0;
     height: 34px;
     border-radius: 18px;
     border: 1px solid #3f6df6;
@@ -252,17 +254,19 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
 }
 
-.input-action-group input {
+.input-action-group input:not([type="radio"]) {
     flex: 1;
+    min-width: 0;
 }
 
-.form-group input:focus {
+.form-group input:not([type="radio"]):focus {
     border-color: #2f5edb;
 }
 
-.form-group input[readonly] {
+.form-group input:not([type="radio"])[readonly] {
     background-color: #f5f5f5;
     cursor: not-allowed;
 }
@@ -272,13 +276,13 @@ body {
     font-weight: 600;
 }
 
-.form-group input.input-invalido {
+.form-group input:not([type="radio"]).input-invalido {
     border-color: #d86161;
     background: linear-gradient(180deg, #fff7f7 0%, #fffdfd 100%);
     box-shadow: 0 0 0 3px rgba(216, 97, 97, 0.12);
 }
 
-.form-group input.input-invalido:focus {
+.form-group input:not([type="radio"]).input-invalido:focus {
     border-color: #c54a4a;
 }
 
@@ -317,6 +321,7 @@ body {
     display: flex;
     gap: 12px;
     flex: 1;
+    min-width: 0;
     align-items: center;
 }
 
@@ -349,6 +354,7 @@ body {
     cursor: pointer;
     margin: 0;
     flex: 0 0 auto;
+    align-self: center;
 }
 
 .radio-option:hover {
@@ -364,7 +370,10 @@ body {
 }
 
 .radio-option span {
-    line-height: 1;
+    display: flex;
+    align-items: center;
+    line-height: 1.2;
+    min-height: 100%;
 }
 /* Más espacio entre campos del detalle */
 #bloqueDetalle .form-group {
@@ -704,6 +713,11 @@ button:disabled {
         margin-bottom: 24px;
     }
 
+    .search-title {
+        font-size: 16px;
+        margin-bottom: 22px;
+    }
+
     .cards {
         grid-template-columns: 1fr;
         gap: 16px;
@@ -723,14 +737,43 @@ button:disabled {
     .form-group {
         flex-direction: column;
         align-items: flex-start;
+        gap: 10px;
     }
 
     .form-group label {
         width: 100%;
+        font-size: 16px;
+        font-weight: 500;
     }
 
-    .form-group input {
+    .form-group input:not([type="radio"]) {
         width: 100%;
+        height: 48px;
+        padding: 0 18px;
+        font-size: 16px;
+        border-radius: 22px;
+    }
+
+    .search-card {
+        padding: 22px 18px;
+    }
+
+    .input-action-group {
+        width: 100%;
+        align-items: stretch;
+    }
+
+    .radio-group {
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .radio-option {
+        flex: 1 1 calc(50% - 5px);
+        min-width: 140px;
+        min-height: 48px;
+        font-size: 15px;
     }
 
     .botones-detalle,
@@ -759,6 +802,15 @@ button:disabled {
         font-size: 22px;
     }
 
+    .search-title {
+        font-size: 17px;
+        gap: 12px;
+    }
+
+    .search-title img {
+        width: 34px;
+    }
+
     .card h3 {
         font-size: 15px;
     }
@@ -769,6 +821,82 @@ button:disabled {
 
     button {
         width: 100%;
+    }
+
+    .search-card {
+        padding: 18px 14px;
+        border-radius: 16px;
+    }
+
+    .input-action-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .input-action-group input:not([type="radio"]) {
+        width: 100%;
+    }
+
+    .btn-check-inline {
+        width: 48px;
+        min-width: 48px;
+        height: 48px;
+        border-radius: 999px;
+        align-self: flex-end;
+        font-size: 18px;
+    }
+
+    .radio-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .radio-option {
+        width: 100%;
+        min-width: 0;
+        min-height: 42px;
+        padding: 0 14px;
+        justify-content: flex-start;
+        align-items: center;
+        font-size: 15px;
+    }
+
+    .radio-option input[type="radio"] {
+        width: 14px;
+        height: 14px;
+    }
+
+    .form-group {
+        width: 100%;
+        gap: 6px;
+    }
+
+    .form-group label {
+        display: block;
+        width: 100%;
+        font-size: 14px;
+        font-weight: 400;
+    }
+
+    .form-group > input,
+    .form-group .input-action-group,
+    .form-group .radio-group {
+        width: 100%;
+    }
+
+    .form-group input:not([type="radio"]) {
+        display: block;
+        height: 42px;
+        padding: 10px 14px;
+        font-size: 15px;
+        border-radius: 20px;
+    }
+
+    .contador-paginacion {
+        font-size: 13px;
+        padding: 8px 12px;
     }
 }
 /* ===================================================== */
