@@ -231,7 +231,7 @@ body {
 }
 
 .form-group label {
-    width: 200px;
+    width: 161px;
     font-size: 13px;
     color: #444;
 }
@@ -245,6 +245,17 @@ body {
     outline: none;
     font-size: 13px;
     transition: 0.2s ease;
+}
+
+.input-action-group {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.input-action-group input {
+    flex: 1;
 }
 
 .form-group input:focus {
@@ -269,6 +280,91 @@ body {
 
 .form-group input.input-invalido:focus {
     border-color: #c54a4a;
+}
+
+.btn-check-inline {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid #2f9a58;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #53c978 0%, #2f9a58 100%);
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 8px 14px rgba(47, 154, 88, 0.18);
+}
+
+.btn-check-inline:hover {
+    background: linear-gradient(180deg, #44bb69 0%, #27864b 100%);
+    color: #ffffff;
+}
+
+.btn-check-inline:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    box-shadow: none;
+}
+
+.form-group-radio {
+    align-items: center;
+}
+
+.radio-group {
+    display: flex;
+    gap: 12px;
+    flex: 1;
+    align-items: center;
+}
+
+.radio-group-invalido .radio-option {
+    border-color: #d86161;
+    box-shadow: 0 0 0 3px rgba(216, 97, 97, 0.08);
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #3f4a5f;
+    cursor: pointer;
+    min-width: 120px;
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid #d7dff7;
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 4px 10px rgba(63, 109, 246, 0.06);
+    transition: 0.2s ease;
+}
+
+.radio-option input[type="radio"] {
+    width: 14px;
+    height: 14px;
+    accent-color: #2f5edb;
+    cursor: pointer;
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.radio-option:hover {
+    border-color: #aebff5;
+    transform: translateY(-1px);
+}
+
+.radio-option-activa {
+    border-color: #2f5edb;
+    background: linear-gradient(180deg, #f4f8ff 0%, #eaf1ff 100%);
+    color: #1f4fc9;
+    box-shadow: 0 8px 16px rgba(63, 109, 246, 0.12);
+}
+
+.radio-option span {
+    line-height: 1;
 }
 /* Más espacio entre campos del detalle */
 #bloqueDetalle .form-group {
@@ -356,6 +452,11 @@ button:hover {
 
 button:active {
     transform: scale(0.97);
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
 }
 
 .botones-form,

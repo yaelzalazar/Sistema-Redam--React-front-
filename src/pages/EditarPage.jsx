@@ -3,6 +3,15 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 
 const API_URL = "http://localhost:8089/api/v1/registro-redam";
+const RENAPER_API_URL =
+  "http://10.20.252.226/gateway//api/v1/persons/human/renaper";
+const DOCUMENT_TYPE_ID = "5";
+const APP_AUDIT_HEADER = "Sistema REDAM - Consulta demandante";
+const GENDER_IDS = {
+  F: "4",
+  M: "5",
+  X: "6"
+};
 
 const initialForm = {
   provincia: "MENDOZA",
@@ -12,6 +21,7 @@ const initialForm = {
   motivo: "",
   monto: "",
   banco: "",
+  sexoDemandante: "",
   nombreDemandante: "",
   apellidoDemandante: "",
   tipoDocDemandante: "DNI",
@@ -22,8 +32,6 @@ const initialForm = {
 const requiredFields = [
   "dniDeudor",
   "numeroExpediente",
-  "nombreDemandante",
-  "apellidoDemandante",
   "tipoDocDemandante",
   "dniDemandante"
 ];
@@ -33,6 +41,8 @@ function EditarPage() {
   const [isLeaving, setIsLeaving] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [invalidFields, setInvalidFields] = useState([]);
+  const [isDemandanteValidated, setIsDemandanteValidated] = useState(false);
+  const [isCheckingRenaper, setIsCheckingRenaper] = useState(false);
   const [message, setMessage] = useState({
     visible: false,
     type: "error",
@@ -67,6 +77,10 @@ function EditarPage() {
 
     setMessage({ visible: true, type, title, text });
 
+    if (title === "Datos del demandante recuperados correctamente") {
+      return;
+    }
+
     messageTimeoutRef.current = setTimeout(() => {
       setMessage((prev) => ({ ...prev, visible: false }));
     }, type === "exito" ? 10000 : 8000);
@@ -95,7 +109,95 @@ function EditarPage() {
     }
 
     setInvalidFields((prev) => prev.filter((field) => field !== name));
-    setForm((prev) => ({ ...prev, [name]: nextValue }));
+    setForm((prev) => {
+      const nextForm = { ...prev, [name]: nextValue };
+
+      if (name === "dniDemandante" || name === "sexoDemandante") {
+        nextForm.nombreDemandante = "";
+        nextForm.apellidoDemandante = "";
+        setIsDemandanteValidated(false);
+      }
+
+      return nextForm;
+    });
+  };
+
+  const handleConsultarDemandante = async () => {
+    const dni = form.dniDemandante.trim();
+    const sexo = form.sexoDemandante;
+    const missingFields = [];
+
+    if (!dni) {
+      missingFields.push("dniDemandante");
+    }
+    if (!sexo) {
+      missingFields.push("sexoDemandante");
+    }
+
+    if (missingFields.length > 0) {
+      setInvalidFields(missingFields);
+      showMessage("error", "Debe completar el N° DNI", "");
+      return;
+    }
+
+    const genderId = GENDER_IDS[sexo];
+    if (!genderId) {
+      showMessage("error", "Sexo invalido", "");
+      return;
+    }
+
+    setInvalidFields([]);
+    setIsCheckingRenaper(true);
+
+    try {
+      const query = new URLSearchParams({
+        document: dni,
+        genderId,
+        documentTypeId: DOCUMENT_TYPE_ID
+      });
+      const response = await fetch(`${RENAPER_API_URL}?${query.toString()}`, {
+        headers: {
+          app: APP_AUDIT_HEADER
+        }
+      });
+      const body = await response.json();
+      const respuesta =
+        body?.response?.respuesta ??
+        body?.respuesta ??
+        body?.response ??
+        body;
+      const nombres = String(
+        respuesta?.nombres ?? respuesta?.nombre ?? respuesta?.firstName ?? ""
+      ).trim();
+      const apellidos = String(
+        respuesta?.apellidos ?? respuesta?.apellido ?? respuesta?.lastName ?? ""
+      ).trim();
+      const flag = String(body?.response?.flag ?? body?.flag ?? "").trim().toUpperCase();
+      const hasPersonData = Boolean(nombres && apellidos);
+
+      if (hasPersonData || flag === "SI") {
+        setForm((prev) => ({
+          ...prev,
+          nombreDemandante: nombres.toUpperCase(),
+          apellidoDemandante: apellidos.toUpperCase()
+        }));
+        setIsDemandanteValidated(true);
+        showMessage("exito", "Datos del demandante recuperados correctamente", "");
+        return;
+      }
+
+      setIsDemandanteValidated(false);
+      showMessage(
+        "error",
+        "No se pudieron recuperar los datos del demandante",
+        body?.response?.msjerrores?.[0] || ""
+      );
+    } catch {
+      setIsDemandanteValidated(false);
+      showMessage("error", "Error al consultar RENAPER", "Intente nuevamente mas tarde.");
+    } finally {
+      setIsCheckingRenaper(false);
+    }
   };
 
   const handleGuardar = async () => {
@@ -108,6 +210,11 @@ function EditarPage() {
         "Complete todos los datos requeridos para cargar el demandante.",
         "Complete todos los datos requeridos para cargar el demandante."
       );
+      return;
+    }
+
+    if (!isDemandanteValidated) {
+      showMessage("error", "Debe validar el DNI del demandante", "");
       return;
     }
 
@@ -142,6 +249,7 @@ function EditarPage() {
           "Datos del demandante cargados correctamente",
           body.message || "Datos del demandante cargados correctamente"
         );
+        setIsDemandanteValidated(false);
         setForm(initialForm);
         return;
       }
@@ -251,17 +359,65 @@ function EditarPage() {
                 className={invalidFields.includes("tipoDocDemandante") ? "input-invalido" : ""}
               />
             </div>
+            <div className="form-group form-group-radio">
+              <label className={invalidFields.includes("sexoDemandante") ? "label-invalido" : ""}>
+                Sexo:
+              </label>
+              <div className={`radio-group${invalidFields.includes("sexoDemandante") ? " radio-group-invalido" : ""}`}>
+                <label className={`radio-option${form.sexoDemandante === "M" ? " radio-option-activa" : ""}`}>
+                  <input
+                    name="sexoDemandante"
+                    type="radio"
+                    value="M"
+                    checked={form.sexoDemandante === "M"}
+                    onChange={handleChange}
+                  />
+                  <span>Masculino</span>
+                </label>
+                <label className={`radio-option${form.sexoDemandante === "F" ? " radio-option-activa" : ""}`}>
+                  <input
+                    name="sexoDemandante"
+                    type="radio"
+                    value="F"
+                    checked={form.sexoDemandante === "F"}
+                    onChange={handleChange}
+                  />
+                  <span>Femenino</span>
+                </label>
+                <label className={`radio-option${form.sexoDemandante === "X" ? " radio-option-activa" : ""}`}>
+                  <input
+                    name="sexoDemandante"
+                    type="radio"
+                    value="X"
+                    checked={form.sexoDemandante === "X"}
+                    onChange={handleChange}
+                  />
+                  <span>X</span>
+                </label>
+              </div>
+            </div>
             <div className="form-group">
               <label className={invalidFields.includes("dniDemandante") ? "label-invalido" : ""}>
                 DNI Demandante:
               </label>
-              <input
-                name="dniDemandante"
-                type="text"
-                value={form.dniDemandante}
-                onChange={handleChange}
-                className={invalidFields.includes("dniDemandante") ? "input-invalido" : ""}
-              />
+              <div className="input-action-group">
+                <input
+                  name="dniDemandante"
+                  type="text"
+                  value={form.dniDemandante}
+                  onChange={handleChange}
+                  className={invalidFields.includes("dniDemandante") ? "input-invalido" : ""}
+                />
+                <button
+                  type="button"
+                  className="btn-check-inline"
+                  aria-label="Confirmar DNI demandante"
+                  onClick={handleConsultarDemandante}
+                  disabled={isCheckingRenaper || !form.sexoDemandante}
+                >
+                  {isCheckingRenaper ? "..." : "\u2713"}
+                </button>
+              </div>
             </div>
             <div className="form-group">
               <label className={invalidFields.includes("nombreDemandante") ? "label-invalido" : ""}>
@@ -272,6 +428,7 @@ function EditarPage() {
                 type="text"
                 value={form.nombreDemandante}
                 onChange={handleChange}
+                readOnly
                 className={invalidFields.includes("nombreDemandante") ? "input-invalido" : ""}
               />
             </div>
@@ -284,6 +441,7 @@ function EditarPage() {
                 type="text"
                 value={form.apellidoDemandante}
                 onChange={handleChange}
+                readOnly
                 className={invalidFields.includes("apellidoDemandante") ? "input-invalido" : ""}
               />
             </div>
@@ -298,7 +456,7 @@ function EditarPage() {
             </div>
 
             <div className="botones-form">
-              <button type="button" onClick={handleGuardar}>
+              <button type="button" onClick={handleGuardar} disabled={!isDemandanteValidated}>
                 Cargar demandante
               </button>
               <button type="button" onClick={handleVolver}>
