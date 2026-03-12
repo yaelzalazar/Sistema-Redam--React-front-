@@ -15,7 +15,7 @@ const GENDER_IDS = {
 
 const initialForm = {
   provincia: "MENDOZA",
-  tribunal: "TERCER JUZGADO DE PAZ PRIMERA CIRCUNSCRIPCIÓN",
+  tribunal: "",
   dniDeudor: "",
   numeroExpediente: "",
   motivo: "",
@@ -41,6 +41,7 @@ function EditarPage() {
   const location = useLocation();
   const [isLeaving, setIsLeaving] = useState(false);
   const [form, setForm] = useState(initialForm);
+  const [tribunales, setTribunales] = useState([]);
   const [invalidFields, setInvalidFields] = useState([]);
   const [isDemandanteValidated, setIsDemandanteValidated] = useState(false);
   const [isCheckingRenaper, setIsCheckingRenaper] = useState(false);
@@ -69,6 +70,50 @@ function EditarPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const cargarTribunales = async () => {
+      try {
+        const response = await fetch(`${API_URL}/tribunales`);
+        const body = await response.json();
+        const rawTribunales = Array.isArray(body)
+          ? body
+          : Array.isArray(body?.data)
+            ? body.data
+            : [];
+        const parsedTribunales = rawTribunales
+          .map((item) => {
+            if (typeof item === "string") {
+              return item.trim().toUpperCase();
+            }
+
+            return String(
+              item?.tribunal ?? item?.nombre ?? item?.descripcion ?? item?.value ?? ""
+            )
+              .trim()
+              .toUpperCase();
+          })
+          .filter(Boolean);
+
+        if (isMounted) {
+          setTribunales([...new Set(parsedTribunales)]);
+        }
+      } catch {
+        if (isMounted) {
+          setTribunales([]);
+        }
+      }
+    };
+
+    cargarTribunales();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
 
   useEffect(() => {
     const dniDeudor = location.state?.dniDeudor;
@@ -342,7 +387,19 @@ function EditarPage() {
             </div>
             <div className="form-group">
               <label>Tribunal:</label>
-              <input name="tribunal" type="text" value={form.tribunal} readOnly />
+              <input
+                name="tribunal"
+                type="text"
+                value={form.tribunal}
+                onChange={handleChange}
+                list="tribunales-lista"
+                autoComplete="off"
+              />
+              <datalist id="tribunales-lista">
+                {tribunales.map((tribunal) => (
+                  <option key={tribunal} value={tribunal} />
+                ))}
+              </datalist>
             </div>
             <div className="form-group">
               <label className={invalidFields.includes("dniDeudor") ? "label-invalido" : ""}>
