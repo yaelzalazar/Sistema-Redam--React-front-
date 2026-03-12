@@ -60,17 +60,6 @@ function HomePage() {
             </div>
           </Link>
 
-          <Link to="/editar" className="card-link cargar-card" onClick={(event) => handleCardClick(event, "/editar")}>
-            <div className="card">
-              <img src="/img/editar.png" alt="Editar" />
-              <h3>Editar Deudores Morosos</h3>
-              <p>
-                Autoriza a la persona a cargar y eliminar datos del Registro de Deudores
-                Alimentarios.
-              </p>
-              <span className="link">Click para abrir</span>
-            </div>
-          </Link>
         </div>
       </main>
     </>

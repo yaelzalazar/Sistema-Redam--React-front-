@@ -44,6 +44,10 @@ const nonEditableFields = [
   "tribunal",
   "tipoDocDeudor",
   "dniDeudor",
+  "nombreDeudor",
+  "apellidoDeudor",
+  "nombreDemandante",
+  "apellidoDemandante",
   "tipoDocDemandante",
   "dniDemandante"
 ];

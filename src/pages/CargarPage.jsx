@@ -30,6 +30,7 @@ function CargarPage() {
   const [invalidFields, setInvalidFields] = useState([]);
   const [isDeudorValidated, setIsDeudorValidated] = useState(false);
   const [isCheckingRenaper, setIsCheckingRenaper] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({
     visible: false,
     type: "error",
@@ -38,6 +39,7 @@ function CargarPage() {
   });
   const timeoutRef = useRef(null);
   const leaveTimeoutRef = useRef(null);
+  const redirectTimeoutRef = useRef(null);
   const messageRef = useRef(null);
 
   useEffect(() => {
@@ -47,6 +49,9 @@ function CargarPage() {
       }
       if (leaveTimeoutRef.current) {
         clearTimeout(leaveTimeoutRef.current);
+      }
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
       }
     };
   }, []);
@@ -184,6 +189,7 @@ function CargarPage() {
     }
 
     setInvalidFields([]);
+    setIsSubmitting(true);
 
     const payload = {
       tipoDocDeudor: form.tipoDocDeudor,
@@ -201,13 +207,29 @@ function CargarPage() {
       const body = await response.json();
 
       if (response.ok && body.flag === true) {
+        const dniCreado = form.docDeudor.trim();
         showMessage(
           "exito",
           "Deudor creado correctamente",
           body.message || "El deudor fue creado correctamente."
         );
         setIsDeudorValidated(false);
-        setForm(initialForm);
+        if (redirectTimeoutRef.current) {
+          clearTimeout(redirectTimeoutRef.current);
+        }
+        redirectTimeoutRef.current = setTimeout(() => {
+          setIsLeaving(true);
+          if (leaveTimeoutRef.current) {
+            clearTimeout(leaveTimeoutRef.current);
+          }
+          leaveTimeoutRef.current = setTimeout(() => {
+            navigate("/editar", {
+              state: {
+                dniDeudor: dniCreado
+              }
+            });
+          }, 280);
+        }, 4000);
         return;
       }
 
@@ -216,12 +238,14 @@ function CargarPage() {
         "No se pudo crear el deudor",
         body.message || "No se pudo crear el deudor. Intente nuevamente mas tarde."
       );
+      setIsSubmitting(false);
     } catch {
       showMessage(
         "error",
         "Error de conexion",
         "No se pudo crear el deudor en este momento. Intente nuevamente mas tarde."
       );
+      setIsSubmitting(false);
     }
   };
 
@@ -367,14 +391,6 @@ function CargarPage() {
                 className={invalidFields.includes("apellidosDeudor") ? "input-invalido" : ""}
               />
             </div>
-            <div className="botones-form">
-              <button type="button" onClick={handleGuardar} disabled={!isDeudorValidated}>
-                Cargar deudor
-              </button>
-              <button type="button" onClick={handleVolver}>
-                Volver
-              </button>
-            </div>
           </form>
 
           {message.visible && (
@@ -392,6 +408,15 @@ function CargarPage() {
               </div>
             </div>
           )}
+
+          <div className="botones-form">
+            <button type="button" onClick={handleGuardar} disabled={!isDeudorValidated || isSubmitting}>
+              Cargar deudor
+            </button>
+            <button type="button" onClick={handleVolver} disabled={isSubmitting}>
+              Volver
+            </button>
+          </div>
         </div>
       </main>
     </>

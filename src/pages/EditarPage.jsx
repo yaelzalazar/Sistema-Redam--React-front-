@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 
 const API_URL = "http://localhost:8089/api/v1/registro-redam";
@@ -38,11 +38,13 @@ const requiredFields = [
 
 function EditarPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLeaving, setIsLeaving] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [invalidFields, setInvalidFields] = useState([]);
   const [isDemandanteValidated, setIsDemandanteValidated] = useState(false);
   const [isCheckingRenaper, setIsCheckingRenaper] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({
     visible: false,
     type: "error",
@@ -51,6 +53,7 @@ function EditarPage() {
   });
   const leaveTimeoutRef = useRef(null);
   const messageTimeoutRef = useRef(null);
+  const redirectTimeoutRef = useRef(null);
   const messageRef = useRef(null);
 
   useEffect(() => {
@@ -61,8 +64,23 @@ function EditarPage() {
       if (messageTimeoutRef.current) {
         clearTimeout(messageTimeoutRef.current);
       }
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    const dniDeudor = location.state?.dniDeudor;
+    if (!dniDeudor) {
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      dniDeudor: String(dniDeudor)
+    }));
+  }, [location.state]);
 
   useEffect(() => {
     if (message.visible && message.type === "exito" && messageRef.current) {
@@ -219,6 +237,7 @@ function EditarPage() {
     }
 
     setInvalidFields([]);
+    setIsSubmitting(true);
 
     const payload = {
       provincia: form.provincia.trim(),
@@ -251,6 +270,18 @@ function EditarPage() {
         );
         setIsDemandanteValidated(false);
         setForm(initialForm);
+        if (redirectTimeoutRef.current) {
+          clearTimeout(redirectTimeoutRef.current);
+        }
+        redirectTimeoutRef.current = setTimeout(() => {
+          setIsLeaving(true);
+          if (leaveTimeoutRef.current) {
+            clearTimeout(leaveTimeoutRef.current);
+          }
+          leaveTimeoutRef.current = setTimeout(() => {
+            navigate("/");
+          }, 280);
+        }, 4000);
         return;
       }
 
@@ -259,12 +290,14 @@ function EditarPage() {
         "No se pudo cargar el demandante",
         body.message || "No se pudo cargar el demandante. Intente nuevamente mas tarde."
       );
+      setIsSubmitting(false);
     } catch {
       showMessage(
         "error",
         "Error de conexion",
         "No se pudo cargar el demandante en este momento. Intente nuevamente mas tarde."
       );
+      setIsSubmitting(false);
     }
   };
 
@@ -319,7 +352,7 @@ function EditarPage() {
                 name="dniDeudor"
                 type="text"
                 value={form.dniDeudor}
-                onChange={handleChange}
+                readOnly
                 className={invalidFields.includes("dniDeudor") ? "input-invalido" : ""}
               />
             </div>
@@ -455,14 +488,6 @@ function EditarPage() {
               />
             </div>
 
-            <div className="botones-form">
-              <button type="button" onClick={handleGuardar} disabled={!isDemandanteValidated}>
-                Cargar demandante
-              </button>
-              <button type="button" onClick={handleVolver}>
-                Volver
-              </button>
-            </div>
           </form>
 
           {message.visible && (
@@ -480,6 +505,19 @@ function EditarPage() {
               </div>
             </div>
           )}
+
+          <div className="botones-form">
+            <button
+              type="button"
+              onClick={handleGuardar}
+              disabled={!isDemandanteValidated || isSubmitting}
+            >
+              Cargar demandante
+            </button>
+            <button type="button" onClick={handleVolver} disabled={isSubmitting}>
+              Volver
+            </button>
+          </div>
         </div>
       </main>
     </>
