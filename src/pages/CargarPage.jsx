@@ -27,6 +27,7 @@ function CargarPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [pendingExistingDeudor, setPendingExistingDeudor] = useState(null);
   const [invalidFields, setInvalidFields] = useState([]);
   const [isDeudorValidated, setIsDeudorValidated] = useState(false);
   const [isCheckingRenaper, setIsCheckingRenaper] = useState(false);
@@ -82,6 +83,7 @@ function CargarPage() {
     const { name, value } = event.target;
     const nextValue = name === "docDeudor" ? value.replace(/\D/g, "") : value.toUpperCase();
 
+    setPendingExistingDeudor(null);
     setInvalidFields((prev) => prev.filter((field) => field !== name));
     setForm((prev) => {
       const nextForm = { ...prev, [name]: nextValue };
@@ -189,6 +191,7 @@ function CargarPage() {
     }
 
     setInvalidFields([]);
+    setPendingExistingDeudor(null);
     setIsSubmitting(true);
 
     const payload = {
@@ -233,6 +236,23 @@ function CargarPage() {
         return;
       }
 
+      const backendMessage = String(body.message || "").trim();
+      const alreadyExists =
+        response.ok &&
+        body.flag === false &&
+        backendMessage.toUpperCase().includes("YA EXISTE");
+
+      if (alreadyExists) {
+        setPendingExistingDeudor(form.docDeudor.trim());
+        showMessage(
+          "error",
+          "Este deudor ya existe, desea crear otro expediente para este mismo deudor?",
+          ""
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
       showMessage(
         "error",
         "No se pudo crear el deudor",
@@ -247,6 +267,32 @@ function CargarPage() {
       );
       setIsSubmitting(false);
     }
+  };
+
+  const handleContinuarConDeudorExistente = () => {
+    if (!pendingExistingDeudor) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setIsLeaving(true);
+
+    if (leaveTimeoutRef.current) {
+      clearTimeout(leaveTimeoutRef.current);
+    }
+
+    leaveTimeoutRef.current = setTimeout(() => {
+      navigate("/editar", {
+        state: {
+          dniDeudor: pendingExistingDeudor
+        }
+      });
+    }, 280);
+  };
+
+  const handleCancelarDeudorExistente = () => {
+    setPendingExistingDeudor(null);
+    setMessage((prev) => ({ ...prev, visible: false }));
   };
 
   const handleVolver = () => {
@@ -410,12 +456,25 @@ function CargarPage() {
           )}
 
           <div className="botones-form">
-            <button type="button" onClick={handleGuardar} disabled={!isDeudorValidated || isSubmitting}>
-              Cargar deudor
-            </button>
-            <button type="button" onClick={handleVolver} disabled={isSubmitting}>
-              Volver
-            </button>
+            {pendingExistingDeudor ? (
+              <>
+                <button type="button" onClick={handleContinuarConDeudorExistente} disabled={isSubmitting}>
+                  Si, continuar
+                </button>
+                <button type="button" onClick={handleCancelarDeudorExistente} disabled={isSubmitting}>
+                  No
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={handleGuardar} disabled={!isDeudorValidated || isSubmitting}>
+                  Cargar deudor
+                </button>
+                <button type="button" onClick={handleVolver} disabled={isSubmitting}>
+                  Volver
+                </button>
+              </>
+            )}
           </div>
         </div>
       </main>
