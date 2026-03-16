@@ -17,6 +17,8 @@ const initialForm = {
   provincia: "MENDOZA",
   tribunal: "",
   dniDeudor: "",
+  nombresDeudor: "",
+  apellidosDeudor: "",
   numeroExpediente: "",
   motivo: "",
   monto: "",
@@ -116,14 +118,22 @@ function EditarPage() {
 
 
   useEffect(() => {
-    const dniDeudor = location.state?.dniDeudor;
-    if (!dniDeudor) {
+    const storedDeudorData = JSON.parse(sessionStorage.getItem("redamDeudorData") || "null");
+    const dniDeudor = location.state?.dniDeudor ?? storedDeudorData?.dniDeudor;
+    const nombresDeudor = location.state?.nombresDeudor ?? storedDeudorData?.nombresDeudor;
+    const apellidosDeudor = location.state?.apellidosDeudor ?? storedDeudorData?.apellidosDeudor;
+
+    if (!dniDeudor && !nombresDeudor && !apellidosDeudor) {
       return;
     }
 
     setForm((prev) => ({
       ...prev,
-      dniDeudor: String(dniDeudor)
+      dniDeudor: dniDeudor ? String(dniDeudor) : prev.dniDeudor,
+      nombresDeudor: nombresDeudor ? String(nombresDeudor).toUpperCase() : prev.nombresDeudor,
+      apellidosDeudor: apellidosDeudor
+        ? String(apellidosDeudor).toUpperCase()
+        : prev.apellidosDeudor
     }));
   }, [location.state]);
 
@@ -414,6 +424,14 @@ function EditarPage() {
               />
             </div>
             <div className="form-group">
+              <label>Nombres Deudor:</label>
+              <input name="nombresDeudor" type="text" value={form.nombresDeudor} readOnly />
+            </div>
+            <div className="form-group">
+              <label>Apellidos Deudor:</label>
+              <input name="apellidosDeudor" type="text" value={form.apellidosDeudor} readOnly />
+            </div>
+            <div className="form-group">
               <label className={invalidFields.includes("numeroExpediente") ? "label-invalido" : ""}>
                 Numero Expediente:
               </label>
@@ -511,7 +529,7 @@ function EditarPage() {
             </div>
             <div className="form-group">
               <label className={invalidFields.includes("nombreDemandante") ? "label-invalido" : ""}>
-                Nombre Demandante:
+                Nombres Demandante:
               </label>
               <input
                 name="nombreDemandante"
@@ -524,7 +542,7 @@ function EditarPage() {
             </div>
             <div className="form-group">
               <label className={invalidFields.includes("apellidoDemandante") ? "label-invalido" : ""}>
-                Apellido Demandante:
+                Apellidos Demandante:
               </label>
               <input
                 name="apellidoDemandante"

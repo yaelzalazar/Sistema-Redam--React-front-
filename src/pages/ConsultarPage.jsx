@@ -3,6 +3,15 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 
 const API_URL = "http://localhost:8089/api/v1/registro-redam";
+const RENAPER_API_URL =
+  "http://10.20.252.226/gateway//api/v1/persons/human/renaper";
+const DOCUMENT_TYPE_ID = "5";
+const APP_AUDIT_HEADER = "Sistema REDAM - Consulta deudor";
+const GENDER_IDS = {
+  F: "4",
+  M: "5",
+  X: "6"
+};
 
 const searchInitial = { dni: "", nombre: "", apellido: "" };
 
@@ -27,7 +36,10 @@ const detailFields = [
 const updatePayloadFields = [
   "provincia",
   "tribunal",
+  "tipoDocDeudor",
   "dniDeudor",
+  "nombreDeudor",
+  "apellidoDeudor",
   "numeroExpediente",
   "motivo",
   "monto",
@@ -43,7 +55,6 @@ const nonEditableFields = [
   "provincia",
   "tribunal",
   "tipoDocDeudor",
-  "dniDeudor",
   "nombreDeudor",
   "apellidoDeudor",
   "nombreDemandante",
@@ -65,6 +76,8 @@ function ConsultarPage() {
   const [direccionPaginacion, setDireccionPaginacion] = useState("siguiente");
   const [isLeaving, setIsLeaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [sexoDeudorEdit, setSexoDeudorEdit] = useState("");
+  const [isCheckingDeudorRenaper, setIsCheckingDeudorRenaper] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
@@ -92,6 +105,11 @@ function ConsultarPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    setSexoDeudorEdit("");
+    setIsCheckingDeudorRenaper(false);
+  }, [indiceActual, isEditing]);
 
   const showValidationMessage = (text) => {
     setMensajeValidacion(text);
@@ -122,6 +140,24 @@ function ConsultarPage() {
     setInvalidDetailFields((prev) => prev.filter((field) => field !== name));
     setResultados((prev) =>
       prev.map((item, index) => (index === indiceActual ? { ...item, [name]: nextValue } : item))
+    );
+  };
+
+  const handleSexoDeudorChange = (event) => {
+    const nextSexo = event.target.value;
+    setSexoDeudorEdit(nextSexo);
+    setInvalidDetailFields((prev) => prev.filter((field) => field !== "sexoDeudor"));
+    setResultados((prev) =>
+      prev.map((item, index) =>
+        index === indiceActual
+          ? {
+              ...item,
+              dniDeudor: "",
+              nombreDeudor: "",
+              apellidoDeudor: ""
+            }
+          : item
+      )
     );
   };
 
@@ -237,8 +273,13 @@ function ConsultarPage() {
       const body = await response.json();
 
       if (response.ok && body.flag) {
+        const updatedRegistro = {
+          ...registroActual,
+          ...(body.data || {}),
+          ...datos
+        };
         setResultados((prev) =>
-          prev.map((item, index) => (index === indiceActual ? body.data || item : item))
+          prev.map((item, index) => (index === indiceActual ? updatedRegistro : item))
         );
         setShowUpdateSuccess(true);
         if (updateTimeoutRef.current) {
@@ -255,6 +296,89 @@ function ConsultarPage() {
       showValidationMessage(body.message || "No se pudo actualizar el registro");
     } catch {
       showValidationMessage("No se pudo actualizar el registro. Intente nuevamente mas tarde.");
+    }
+  };
+
+  const handleConsultarDeudorRenaper = async () => {
+    if (!registroActual) {
+      return;
+    }
+
+    const dni = String(registroActual.dniDeudor ?? "").trim();
+    const sexo = sexoDeudorEdit;
+    const missingFields = [];
+
+    if (!dni) {
+      missingFields.push("dniDeudor");
+    }
+    if (!sexo) {
+      missingFields.push("sexoDeudor");
+    }
+
+    if (missingFields.length > 0) {
+      setInvalidDetailFields((prev) => [...new Set([...prev, ...missingFields])]);
+      showValidationMessage("Debe completar el N° DNI");
+      return;
+    }
+
+    const genderId = GENDER_IDS[sexo];
+    if (!genderId) {
+      showValidationMessage("Sexo invalido");
+      return;
+    }
+
+    setInvalidDetailFields((prev) => prev.filter((field) => field !== "sexoDeudor"));
+    setIsCheckingDeudorRenaper(true);
+
+    try {
+      const query = new URLSearchParams({
+        document: dni,
+        genderId,
+        documentTypeId: DOCUMENT_TYPE_ID
+      });
+      const response = await fetch(`${RENAPER_API_URL}?${query.toString()}`, {
+        headers: {
+          app: APP_AUDIT_HEADER
+        }
+      });
+      const body = await response.json();
+      const respuesta =
+        body?.response?.respuesta ??
+        body?.respuesta ??
+        body?.response ??
+        body;
+      const nombres = String(
+        respuesta?.nombres ?? respuesta?.nombre ?? respuesta?.firstName ?? ""
+      ).trim();
+      const apellidos = String(
+        respuesta?.apellidos ?? respuesta?.apellido ?? respuesta?.lastName ?? ""
+      ).trim();
+      const flag = String(body?.response?.flag ?? body?.flag ?? "").trim().toUpperCase();
+      const hasPersonData = Boolean(nombres && apellidos);
+
+      if (hasPersonData || flag === "SI") {
+        setResultados((prev) =>
+          prev.map((item, index) =>
+            index === indiceActual
+              ? {
+                  ...item,
+                  nombreDeudor: nombres.toUpperCase(),
+                  apellidoDeudor: apellidos.toUpperCase()
+                }
+              : item
+          )
+        );
+        showValidationMessage("Datos del deudor recuperados correctamente");
+        return;
+      }
+
+      showValidationMessage(
+        body?.response?.msjerrores?.[0] || "No se pudieron recuperar los datos del deudor"
+      );
+    } catch {
+      showValidationMessage("Error al consultar RENAPER");
+    } finally {
+      setIsCheckingDeudorRenaper(false);
     }
   };
 
@@ -349,7 +473,7 @@ function ConsultarPage() {
               </div>
               <div className="form-group">
                 <label className={invalidSearchFields.includes("nombre") ? "label-invalido" : ""}>
-                  Nombre:
+                  Nombres:
                 </label>
                 <input
                   name="nombre"
@@ -361,7 +485,7 @@ function ConsultarPage() {
               </div>
               <div className="form-group">
                 <label className={invalidSearchFields.includes("apellido") ? "label-invalido" : ""}>
-                  Apellido:
+                  Apellidos:
                 </label>
                 <input
                   name="apellido"
@@ -435,19 +559,80 @@ function ConsultarPage() {
               className={`detalle-paginado detalle-${direccionPaginacion}`}
             >
               {detailFields.map((field) => (
-                <div className="form-group" key={field.key}>
-                  <label className={invalidDetailFields.includes(field.key) ? "label-invalido" : ""}>
-                    {field.label}:
-                  </label>
-                  <input
-                    name={field.key}
-                    type="text"
-                    value={registroActual[field.key] ?? ""}
-                    onChange={handleDetailChange}
-                    readOnly={!isEditing || nonEditableFields.includes(field.key)}
-                    className={invalidDetailFields.includes(field.key) ? "input-invalido" : ""}
-                  />
-                </div>
+                <React.Fragment key={field.key}>
+                  <div className="form-group">
+                    <label className={invalidDetailFields.includes(field.key) ? "label-invalido" : ""}>
+                      {field.label}:
+                    </label>
+                    <input
+                      name={field.key}
+                      type="text"
+                      value={registroActual[field.key] ?? ""}
+                      onChange={handleDetailChange}
+                      readOnly={
+                        !isEditing ||
+                        (field.key === "dniDeudor"
+                          ? !sexoDeudorEdit
+                          : nonEditableFields.includes(field.key))
+                      }
+                      className={invalidDetailFields.includes(field.key) ? "input-invalido" : ""}
+                    />
+                  </div>
+                  {field.key === "tribunal" && isEditing && (
+                    <div className="form-group form-group-radio">
+                      <label className={invalidDetailFields.includes("sexoDeudor") ? "label-invalido" : ""}>
+                        Sexo:
+                      </label>
+                      <div className="input-action-group">
+                        <div
+                          className={`radio-group${
+                            invalidDetailFields.includes("sexoDeudor") ? " radio-group-invalido" : ""
+                          }`}
+                        >
+                          <label className={`radio-option${sexoDeudorEdit === "M" ? " radio-option-activa" : ""}`}>
+                            <input
+                              name="sexoDeudor"
+                              type="radio"
+                              value="M"
+                              checked={sexoDeudorEdit === "M"}
+                              onChange={handleSexoDeudorChange}
+                            />
+                            <span>Masculino</span>
+                          </label>
+                          <label className={`radio-option${sexoDeudorEdit === "F" ? " radio-option-activa" : ""}`}>
+                            <input
+                              name="sexoDeudor"
+                              type="radio"
+                              value="F"
+                              checked={sexoDeudorEdit === "F"}
+                              onChange={handleSexoDeudorChange}
+                            />
+                            <span>Femenino</span>
+                          </label>
+                          <label className={`radio-option${sexoDeudorEdit === "X" ? " radio-option-activa" : ""}`}>
+                            <input
+                              name="sexoDeudor"
+                              type="radio"
+                              value="X"
+                              checked={sexoDeudorEdit === "X"}
+                              onChange={handleSexoDeudorChange}
+                            />
+                            <span>X</span>
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-check-inline"
+                          aria-label="Confirmar DNI deudor"
+                          onClick={handleConsultarDeudorRenaper}
+                          disabled={isCheckingDeudorRenaper || !sexoDeudorEdit}
+                        >
+                          {isCheckingDeudorRenaper ? "..." : "\u2713"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
             </div>
 

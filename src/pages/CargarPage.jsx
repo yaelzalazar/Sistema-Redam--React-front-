@@ -43,6 +43,17 @@ function CargarPage() {
   const redirectTimeoutRef = useRef(null);
   const messageRef = useRef(null);
 
+  const persistDeudorData = () => {
+    const deudorData = {
+      dniDeudor: form.docDeudor.trim(),
+      nombresDeudor: form.nombresDeudor.trim(),
+      apellidosDeudor: form.apellidosDeudor.trim()
+    };
+
+    sessionStorage.setItem("redamDeudorData", JSON.stringify(deudorData));
+    return deudorData;
+  };
+
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -210,7 +221,7 @@ function CargarPage() {
       const body = await response.json();
 
       if (response.ok && body.flag === true) {
-        const dniCreado = form.docDeudor.trim();
+        const deudorData = persistDeudorData();
         showMessage(
           "exito",
           "Deudor creado correctamente",
@@ -228,7 +239,7 @@ function CargarPage() {
           leaveTimeoutRef.current = setTimeout(() => {
             navigate("/editar", {
               state: {
-                dniDeudor: dniCreado
+                ...deudorData
               }
             });
           }, 280);
@@ -274,6 +285,7 @@ function CargarPage() {
       return;
     }
 
+    const deudorData = persistDeudorData();
     setIsSubmitting(true);
     setIsLeaving(true);
 
@@ -284,7 +296,7 @@ function CargarPage() {
     leaveTimeoutRef.current = setTimeout(() => {
       navigate("/editar", {
         state: {
-          dniDeudor: pendingExistingDeudor
+          ...deudorData
         }
       });
     }, 280);
