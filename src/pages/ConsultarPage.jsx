@@ -20,16 +20,16 @@ const detailFields = [
   { key: "tribunal", label: "Tribunal" },
   { key: "tipoDocDeudor", label: "Tipo Doc Deudor" },
   { key: "dniDeudor", label: "DNI Deudor" },
-  { key: "nombreDeudor", label: "Nombre Deudor" },
-  { key: "apellidoDeudor", label: "Apellido Deudor" },
+  { key: "nombreDeudor", label: "Nombres Deudor" },
+  { key: "apellidoDeudor", label: "Apellidos Deudor" },
   { key: "numeroExpediente", label: "Numero Expediente" },
   { key: "motivo", label: "Motivo" },
   { key: "monto", label: "Monto" },
   { key: "banco", label: "Banco" },
   { key: "tipoDocDemandante", label: "Tipo Doc Demandante" },
   { key: "dniDemandante", label: "DNI Demandante" },
-  { key: "nombreDemandante", label: "Nombre Demandante" },
-  { key: "apellidoDemandante", label: "Apellido Demandante" },
+  { key: "nombreDemandante", label: "Nombres Demandante" },
+  { key: "apellidoDemandante", label: "Apellidos Demandante" },
   { key: "observaciones", label: "Observaciones" }
 ];
 
@@ -77,7 +77,11 @@ function ConsultarPage() {
   const [isLeaving, setIsLeaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [sexoDeudorEdit, setSexoDeudorEdit] = useState("");
+  const [sexoDemandanteEdit, setSexoDemandanteEdit] = useState("");
   const [isCheckingDeudorRenaper, setIsCheckingDeudorRenaper] = useState(false);
+  const [isDeudorRenaperValidated, setIsDeudorRenaperValidated] = useState(false);
+  const [isCheckingDemandanteRenaper, setIsCheckingDemandanteRenaper] = useState(false);
+  const [isDemandanteRenaperValidated, setIsDemandanteRenaperValidated] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
@@ -108,7 +112,11 @@ function ConsultarPage() {
 
   useEffect(() => {
     setSexoDeudorEdit("");
+    setSexoDemandanteEdit("");
     setIsCheckingDeudorRenaper(false);
+    setIsCheckingDemandanteRenaper(false);
+    setIsDeudorRenaperValidated(false);
+    setIsDemandanteRenaperValidated(false);
   }, [indiceActual, isEditing]);
 
   const showValidationMessage = (text) => {
@@ -138,6 +146,12 @@ function ConsultarPage() {
         : value.toUpperCase();
 
     setInvalidDetailFields((prev) => prev.filter((field) => field !== name));
+    if (name === "dniDeudor") {
+      setIsDeudorRenaperValidated(false);
+    }
+    if (name === "dniDemandante") {
+      setIsDemandanteRenaperValidated(false);
+    }
     setResultados((prev) =>
       prev.map((item, index) => (index === indiceActual ? { ...item, [name]: nextValue } : item))
     );
@@ -146,6 +160,7 @@ function ConsultarPage() {
   const handleSexoDeudorChange = (event) => {
     const nextSexo = event.target.value;
     setSexoDeudorEdit(nextSexo);
+    setIsDeudorRenaperValidated(false);
     setInvalidDetailFields((prev) => prev.filter((field) => field !== "sexoDeudor"));
     setResultados((prev) =>
       prev.map((item, index) =>
@@ -155,6 +170,25 @@ function ConsultarPage() {
               dniDeudor: "",
               nombreDeudor: "",
               apellidoDeudor: ""
+            }
+          : item
+      )
+    );
+  };
+
+  const handleSexoDemandanteChange = (event) => {
+    const nextSexo = event.target.value;
+    setSexoDemandanteEdit(nextSexo);
+    setIsDemandanteRenaperValidated(false);
+    setInvalidDetailFields((prev) => prev.filter((field) => field !== "sexoDemandante"));
+    setResultados((prev) =>
+      prev.map((item, index) =>
+        index === indiceActual
+          ? {
+              ...item,
+              dniDemandante: "",
+              nombreDemandante: "",
+              apellidoDemandante: ""
             }
           : item
       )
@@ -244,6 +278,18 @@ function ConsultarPage() {
 
   const handleGuardarCambios = async () => {
     if (!registroActual) {
+      return;
+    }
+
+    if (sexoDeudorEdit && !isDeudorRenaperValidated) {
+      setInvalidDetailFields((prev) => [...new Set([...prev, "dniDeudor", "sexoDeudor"])]);
+      showValidationMessage("Debe validar el DNI del deudor con RENAPER");
+      return;
+    }
+
+    if (sexoDemandanteEdit && !isDemandanteRenaperValidated) {
+      setInvalidDetailFields((prev) => [...new Set([...prev, "dniDemandante", "sexoDemandante"])]);
+      showValidationMessage("Debe validar el DNI del demandante con RENAPER");
       return;
     }
 
@@ -368,17 +414,106 @@ function ConsultarPage() {
               : item
           )
         );
+        setIsDeudorRenaperValidated(true);
         showValidationMessage("Datos del deudor recuperados correctamente");
         return;
       }
 
+      setIsDeudorRenaperValidated(false);
       showValidationMessage(
         body?.response?.msjerrores?.[0] || "No se pudieron recuperar los datos del deudor"
       );
     } catch {
+      setIsDeudorRenaperValidated(false);
       showValidationMessage("Error al consultar RENAPER");
     } finally {
       setIsCheckingDeudorRenaper(false);
+    }
+  };
+
+  const handleConsultarDemandanteRenaper = async () => {
+    if (!registroActual) {
+      return;
+    }
+
+    const dni = String(registroActual.dniDemandante ?? "").trim();
+    const sexo = sexoDemandanteEdit;
+    const missingFields = [];
+
+    if (!dni) {
+      missingFields.push("dniDemandante");
+    }
+    if (!sexo) {
+      missingFields.push("sexoDemandante");
+    }
+
+    if (missingFields.length > 0) {
+      setInvalidDetailFields((prev) => [...new Set([...prev, ...missingFields])]);
+      showValidationMessage("Debe completar el N° DNI");
+      return;
+    }
+
+    const genderId = GENDER_IDS[sexo];
+    if (!genderId) {
+      showValidationMessage("Sexo invalido");
+      return;
+    }
+
+    setInvalidDetailFields((prev) => prev.filter((field) => field !== "sexoDemandante"));
+    setIsCheckingDemandanteRenaper(true);
+
+    try {
+      const query = new URLSearchParams({
+        document: dni,
+        genderId,
+        documentTypeId: DOCUMENT_TYPE_ID
+      });
+      const response = await fetch(`${RENAPER_API_URL}?${query.toString()}`, {
+        headers: {
+          app: APP_AUDIT_HEADER
+        }
+      });
+      const body = await response.json();
+      const respuesta =
+        body?.response?.respuesta ??
+        body?.respuesta ??
+        body?.response ??
+        body;
+      const nombres = String(
+        respuesta?.nombres ?? respuesta?.nombre ?? respuesta?.firstName ?? ""
+      ).trim();
+      const apellidos = String(
+        respuesta?.apellidos ?? respuesta?.apellido ?? respuesta?.lastName ?? ""
+      ).trim();
+      const flag = String(body?.response?.flag ?? body?.flag ?? "").trim().toUpperCase();
+      const hasPersonData = Boolean(nombres && apellidos);
+
+      if (hasPersonData || flag === "SI") {
+        setResultados((prev) =>
+          prev.map((item, index) =>
+            index === indiceActual
+              ? {
+                  ...item,
+                  nombreDemandante: nombres.toUpperCase(),
+                  apellidoDemandante: apellidos.toUpperCase()
+                }
+              : item
+          )
+        );
+        setIsDemandanteRenaperValidated(true);
+        showValidationMessage("Datos del demandante recuperados correctamente");
+        return;
+      }
+
+      setIsDemandanteRenaperValidated(false);
+      showValidationMessage(
+        body?.response?.msjerrores?.[0] || "No se pudieron recuperar los datos del demandante"
+      );
+    } catch {
+      setIsDemandanteRenaperValidated(false);
+      showValidationMessage("Error al consultar RENAPER");
+    } finally {
+      setIsCheckingDemandanteRenaper(false);
     }
   };
 
@@ -573,7 +708,9 @@ function ConsultarPage() {
                         !isEditing ||
                         (field.key === "dniDeudor"
                           ? !sexoDeudorEdit
-                          : nonEditableFields.includes(field.key))
+                          : field.key === "dniDemandante"
+                            ? !sexoDemandanteEdit
+                            : nonEditableFields.includes(field.key))
                       }
                       className={invalidDetailFields.includes(field.key) ? "input-invalido" : ""}
                     />
@@ -628,6 +765,60 @@ function ConsultarPage() {
                           disabled={isCheckingDeudorRenaper || !sexoDeudorEdit}
                         >
                           {isCheckingDeudorRenaper ? "..." : "\u2713"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {field.key === "tipoDocDemandante" && isEditing && (
+                    <div className="form-group form-group-radio">
+                      <label className={invalidDetailFields.includes("sexoDemandante") ? "label-invalido" : ""}>
+                        Sexo:
+                      </label>
+                      <div className="input-action-group">
+                        <div
+                          className={`radio-group${
+                            invalidDetailFields.includes("sexoDemandante") ? " radio-group-invalido" : ""
+                          }`}
+                        >
+                          <label className={`radio-option${sexoDemandanteEdit === "M" ? " radio-option-activa" : ""}`}>
+                            <input
+                              name="sexoDemandante"
+                              type="radio"
+                              value="M"
+                              checked={sexoDemandanteEdit === "M"}
+                              onChange={handleSexoDemandanteChange}
+                            />
+                            <span>Masculino</span>
+                          </label>
+                          <label className={`radio-option${sexoDemandanteEdit === "F" ? " radio-option-activa" : ""}`}>
+                            <input
+                              name="sexoDemandante"
+                              type="radio"
+                              value="F"
+                              checked={sexoDemandanteEdit === "F"}
+                              onChange={handleSexoDemandanteChange}
+                            />
+                            <span>Femenino</span>
+                          </label>
+                          <label className={`radio-option${sexoDemandanteEdit === "X" ? " radio-option-activa" : ""}`}>
+                            <input
+                              name="sexoDemandante"
+                              type="radio"
+                              value="X"
+                              checked={sexoDemandanteEdit === "X"}
+                              onChange={handleSexoDemandanteChange}
+                            />
+                            <span>X</span>
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-check-inline"
+                          aria-label="Confirmar DNI demandante"
+                          onClick={handleConsultarDemandanteRenaper}
+                          disabled={isCheckingDemandanteRenaper || !sexoDemandanteEdit}
+                        >
+                          {isCheckingDemandanteRenaper ? "..." : "\u2713"}
                         </button>
                       </div>
                     </div>
