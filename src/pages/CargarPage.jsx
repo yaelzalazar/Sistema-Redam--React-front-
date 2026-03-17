@@ -254,7 +254,15 @@ function CargarPage() {
         backendMessage.toUpperCase().includes("YA EXISTE");
 
       if (alreadyExists) {
-        setPendingExistingDeudor(form.docDeudor.trim());
+        setPendingExistingDeudor({
+          dniDeudor: String(body?.data?.docDeudor ?? form.docDeudor ?? "").trim(),
+          nombresDeudor: String(
+            body?.data?.nombresDeudor ?? form.nombresDeudor ?? ""
+          ).trim(),
+          apellidosDeudor: String(
+            body?.data?.apellidosDeudor ?? form.apellidosDeudor ?? ""
+          ).trim()
+        });
         showMessage(
           "error",
           "Este deudor ya existe, desea crear otro expediente para este mismo deudor?",
@@ -285,7 +293,7 @@ function CargarPage() {
       return;
     }
 
-    const deudorData = persistDeudorData();
+    sessionStorage.setItem("redamDeudorData", JSON.stringify(pendingExistingDeudor));
     setIsSubmitting(true);
     setIsLeaving(true);
 
@@ -296,7 +304,7 @@ function CargarPage() {
     leaveTimeoutRef.current = setTimeout(() => {
       navigate("/editar", {
         state: {
-          ...deudorData
+          ...pendingExistingDeudor
         }
       });
     }, 280);
