@@ -92,7 +92,6 @@ function ConsultarPage() {
 
   const hasResults = resultados.length > 0;
   const registroActual = useMemo(() => resultados[indiceActual] || null, [resultados, indiceActual]);
-
   useEffect(() => {
     return () => {
       if (updateTimeoutRef.current) {
