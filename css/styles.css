@@ -237,7 +237,8 @@ body {
     color: #444;
 }
 
-.form-group input:not([type="radio"]) {
+.form-group input:not([type="radio"]),
+.form-group select {
     flex: 1;
     min-width: 0;
     height: 34px;
@@ -262,7 +263,8 @@ body {
     min-width: 0;
 }
 
-.form-group input:not([type="radio"]):focus {
+.form-group input:not([type="radio"]):focus,
+.form-group select:focus {
     border-color: #2f5edb;
 }
 
@@ -276,13 +278,15 @@ body {
     font-weight: 600;
 }
 
-.form-group input:not([type="radio"]).input-invalido {
+.form-group input:not([type="radio"]).input-invalido,
+.form-group select.input-invalido {
     border-color: #d86161;
     background: linear-gradient(180deg, #fff7f7 0%, #fffdfd 100%);
     box-shadow: 0 0 0 3px rgba(216, 97, 97, 0.12);
 }
 
-.form-group input:not([type="radio"]).input-invalido:focus {
+.form-group input:not([type="radio"]).input-invalido:focus,
+.form-group select.input-invalido:focus {
     border-color: #c54a4a;
 }
 
@@ -374,6 +378,16 @@ body {
     align-items: center;
     line-height: 1.2;
     min-height: 100%;
+}
+
+.radio-option-bloqueada,
+.radio-option-bloqueada:hover {
+    cursor: not-allowed;
+    transform: none;
+}
+
+.radio-option-bloqueada input[type="radio"] {
+    cursor: not-allowed;
 }
 /* Más espacio entre campos del detalle */
 #bloqueDetalle .form-group {
@@ -746,7 +760,8 @@ button:disabled {
         font-weight: 500;
     }
 
-    .form-group input:not([type="radio"]) {
+    .form-group input:not([type="radio"]),
+    .form-group select {
         width: 100%;
         height: 48px;
         padding: 0 18px;
@@ -886,7 +901,8 @@ button:disabled {
         width: 100%;
     }
 
-    .form-group input:not([type="radio"]) {
+    .form-group input:not([type="radio"]),
+    .form-group select {
         display: block;
         height: 42px;
         padding: 10px 14px;

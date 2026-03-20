@@ -17,6 +17,7 @@ const initialForm = {
   provincia: "MENDOZA",
   tribunal: "",
   dniDeudor: "",
+  sexoDeudor: "",
   tipoDocDeudor: "DNI",
   nombresDeudor: "",
   apellidosDeudor: "",
@@ -27,7 +28,7 @@ const initialForm = {
   sexoDemandante: "",
   nombreDemandante: "",
   apellidoDemandante: "",
-  tipoDocDemandante: "DNI",
+  tipoDocDemandante: "",
   dniDemandante: "",
   observaciones: ""
 };
@@ -121,16 +122,18 @@ function EditarPage() {
   useEffect(() => {
     const storedDeudorData = JSON.parse(sessionStorage.getItem("redamDeudorData") || "null");
     const dniDeudor = location.state?.dniDeudor ?? storedDeudorData?.dniDeudor;
+    const sexoDeudor = location.state?.sexoDeudor ?? storedDeudorData?.sexoDeudor;
     const nombresDeudor = location.state?.nombresDeudor ?? storedDeudorData?.nombresDeudor;
     const apellidosDeudor = location.state?.apellidosDeudor ?? storedDeudorData?.apellidosDeudor;
 
-    if (!dniDeudor && !nombresDeudor && !apellidosDeudor) {
+    if (!dniDeudor && !sexoDeudor && !nombresDeudor && !apellidosDeudor) {
       return;
     }
 
     setForm((prev) => ({
       ...prev,
       dniDeudor: dniDeudor ? String(dniDeudor) : prev.dniDeudor,
+      sexoDeudor: sexoDeudor ? String(sexoDeudor).toUpperCase() : prev.sexoDeudor,
       nombresDeudor: nombresDeudor ? String(nombresDeudor).toUpperCase() : prev.nombresDeudor,
       apellidosDeudor: apellidosDeudor
         ? String(apellidosDeudor).toUpperCase()
@@ -186,9 +189,12 @@ function EditarPage() {
     setForm((prev) => {
       const nextForm = { ...prev, [name]: nextValue };
 
-      if (name === "dniDemandante" || name === "sexoDemandante") {
+      if (name === "dniDemandante" || name === "sexoDemandante" || name === "tipoDocDemandante") {
         nextForm.nombreDemandante = "";
         nextForm.apellidoDemandante = "";
+        if (name === "tipoDocDemandante" && nextValue === "EXTRANJERO") {
+          nextForm.sexoDemandante = "";
+        }
         setIsDemandanteValidated(false);
       }
 
@@ -287,7 +293,7 @@ function EditarPage() {
       return;
     }
 
-    if (!isDemandanteValidated) {
+    if (form.tipoDocDemandante === "DNI" && !isDemandanteValidated) {
       showMessage("error", "Debe validar el DNI del demandante", "");
       return;
     }
@@ -328,7 +334,6 @@ function EditarPage() {
           body.message || "Datos del demandante cargados correctamente"
         );
         setIsDemandanteValidated(false);
-        setForm(initialForm);
         if (redirectTimeoutRef.current) {
           clearTimeout(redirectTimeoutRef.current);
         }
@@ -427,6 +432,23 @@ function EditarPage() {
                 className={invalidFields.includes("dniDeudor") ? "input-invalido" : ""}
               />
             </div>
+            <div className="form-group form-group-radio">
+              <label>Sexo:</label>
+              <div className="radio-group">
+                <label className={`radio-option radio-option-bloqueada${form.sexoDeudor === "M" ? " radio-option-activa" : ""}`}>
+                  <input type="radio" checked={form.sexoDeudor === "M"} readOnly disabled />
+                  <span>Masculino</span>
+                </label>
+                <label className={`radio-option radio-option-bloqueada${form.sexoDeudor === "F" ? " radio-option-activa" : ""}`}>
+                  <input type="radio" checked={form.sexoDeudor === "F"} readOnly disabled />
+                  <span>Femenino</span>
+                </label>
+                <label className={`radio-option radio-option-bloqueada${form.sexoDeudor === "X" ? " radio-option-activa" : ""}`}>
+                  <input type="radio" checked={form.sexoDeudor === "X"} readOnly disabled />
+                  <span>X</span>
+                </label>
+              </div>
+            </div>
             <div className="form-group">
               <label>Nombres Deudor:</label>
               <input name="nombresDeudor" type="text" value={form.nombresDeudor} readOnly />
@@ -463,51 +485,56 @@ function EditarPage() {
               <label className={invalidFields.includes("tipoDocDemandante") ? "label-invalido" : ""}>
                 Tipo Doc Demandante:
               </label>
-              <input
+              <select
                 name="tipoDocDemandante"
-                type="text"
                 value={form.tipoDocDemandante}
-                readOnly
+                onChange={handleChange}
                 className={invalidFields.includes("tipoDocDemandante") ? "input-invalido" : ""}
-              />
+              >
+                <option value="">Seleccionar</option>
+                <option value="DNI">DNI</option>
+                <option value="EXTRANJERO">EXTRANJERO</option>
+              </select>
             </div>
-            <div className="form-group form-group-radio">
-              <label className={invalidFields.includes("sexoDemandante") ? "label-invalido" : ""}>
-                Sexo:
-              </label>
-              <div className={`radio-group${invalidFields.includes("sexoDemandante") ? " radio-group-invalido" : ""}`}>
-                <label className={`radio-option${form.sexoDemandante === "M" ? " radio-option-activa" : ""}`}>
-                  <input
-                    name="sexoDemandante"
-                    type="radio"
-                    value="M"
-                    checked={form.sexoDemandante === "M"}
-                    onChange={handleChange}
-                  />
-                  <span>Masculino</span>
+            {form.tipoDocDemandante === "DNI" && (
+              <div className="form-group form-group-radio">
+                <label className={invalidFields.includes("sexoDemandante") ? "label-invalido" : ""}>
+                  Sexo:
                 </label>
-                <label className={`radio-option${form.sexoDemandante === "F" ? " radio-option-activa" : ""}`}>
-                  <input
-                    name="sexoDemandante"
-                    type="radio"
-                    value="F"
-                    checked={form.sexoDemandante === "F"}
-                    onChange={handleChange}
-                  />
-                  <span>Femenino</span>
-                </label>
-                <label className={`radio-option${form.sexoDemandante === "X" ? " radio-option-activa" : ""}`}>
-                  <input
-                    name="sexoDemandante"
-                    type="radio"
-                    value="X"
-                    checked={form.sexoDemandante === "X"}
-                    onChange={handleChange}
-                  />
-                  <span>X</span>
-                </label>
+                <div className={`radio-group${invalidFields.includes("sexoDemandante") ? " radio-group-invalido" : ""}`}>
+                  <label className={`radio-option${form.sexoDemandante === "M" ? " radio-option-activa" : ""}`}>
+                    <input
+                      name="sexoDemandante"
+                      type="radio"
+                      value="M"
+                      checked={form.sexoDemandante === "M"}
+                      onChange={handleChange}
+                    />
+                    <span>Masculino</span>
+                  </label>
+                  <label className={`radio-option${form.sexoDemandante === "F" ? " radio-option-activa" : ""}`}>
+                    <input
+                      name="sexoDemandante"
+                      type="radio"
+                      value="F"
+                      checked={form.sexoDemandante === "F"}
+                      onChange={handleChange}
+                    />
+                    <span>Femenino</span>
+                  </label>
+                  <label className={`radio-option${form.sexoDemandante === "X" ? " radio-option-activa" : ""}`}>
+                    <input
+                      name="sexoDemandante"
+                      type="radio"
+                      value="X"
+                      checked={form.sexoDemandante === "X"}
+                      onChange={handleChange}
+                    />
+                    <span>X</span>
+                  </label>
+                </div>
               </div>
-            </div>
+            )}
             <div className="form-group">
               <label className={invalidFields.includes("dniDemandante") ? "label-invalido" : ""}>
                 DNI Demandante:
@@ -518,17 +545,20 @@ function EditarPage() {
                   type="text"
                   value={form.dniDemandante}
                   onChange={handleChange}
+                  readOnly={!form.tipoDocDemandante}
                   className={invalidFields.includes("dniDemandante") ? "input-invalido" : ""}
                 />
-                <button
-                  type="button"
-                  className="btn-check-inline"
-                  aria-label="Confirmar DNI demandante"
-                  onClick={handleConsultarDemandante}
-                  disabled={isCheckingRenaper || !form.sexoDemandante}
-                >
-                  {isCheckingRenaper ? "..." : "\u2713"}
-                </button>
+                {form.tipoDocDemandante === "DNI" && (
+                  <button
+                    type="button"
+                    className="btn-check-inline"
+                    aria-label="Confirmar DNI demandante"
+                    onClick={handleConsultarDemandante}
+                    disabled={isCheckingRenaper || !form.sexoDemandante}
+                  >
+                    {isCheckingRenaper ? "..." : "\u2713"}
+                  </button>
+                )}
               </div>
             </div>
             <div className="form-group">
@@ -540,7 +570,7 @@ function EditarPage() {
                 type="text"
                 value={form.nombreDemandante}
                 onChange={handleChange}
-                readOnly
+                readOnly={form.tipoDocDemandante !== "EXTRANJERO"}
                 className={invalidFields.includes("nombreDemandante") ? "input-invalido" : ""}
               />
             </div>
@@ -553,7 +583,7 @@ function EditarPage() {
                 type="text"
                 value={form.apellidoDemandante}
                 onChange={handleChange}
-                readOnly
+                readOnly={form.tipoDocDemandante !== "EXTRANJERO"}
                 className={invalidFields.includes("apellidoDemandante") ? "input-invalido" : ""}
               />
             </div>

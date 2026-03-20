@@ -47,7 +47,8 @@ function CargarPage() {
     const deudorData = {
       dniDeudor: form.docDeudor.trim(),
       nombresDeudor: form.nombresDeudor.trim(),
-      apellidosDeudor: form.apellidosDeudor.trim()
+      apellidosDeudor: form.apellidosDeudor.trim(),
+      sexoDeudor: form.sexo
     };
 
     sessionStorage.setItem("redamDeudorData", JSON.stringify(deudorData));
@@ -261,7 +262,8 @@ function CargarPage() {
           ).trim(),
           apellidosDeudor: String(
             body?.data?.apellidosDeudor ?? form.apellidosDeudor ?? ""
-          ).trim()
+          ).trim(),
+          sexoDeudor: form.sexo
         });
         showMessage(
           "error",

@@ -5,6 +5,10 @@ import Header from "../components/Header";
 const API_URL = "http://localhost:8089/api/v1/registro-redam";
 const RENAPER_API_URL =
   "http://10.20.252.226/gateway//api/v1/persons/human/renaper";
+const EXTERNAL_SEARCH_API_URL =
+  "https://dev-api-drp.jus.mendoza.gov.ar/gateway/api/v1/redam/deudores/detalles-completo";
+const EXTERNAL_DELETE_API_URL =
+  "https://dev-api-drp.jus.mendoza.gov.ar/gateway/api/v1/redam/deudores";
 const DOCUMENT_TYPE_ID = "5";
 const APP_AUDIT_HEADER = "Sistema REDAM - Consulta deudor";
 const GENDER_IDS = {
@@ -31,6 +35,15 @@ const detailFields = [
   { key: "nombreDemandante", label: "Nombres Demandante" },
   { key: "apellidoDemandante", label: "Apellidos Demandante" },
   { key: "observaciones", label: "Observaciones" }
+];
+
+const externalDetailFields = [
+  { key: "provincia", label: "Provincia" },
+  { key: "tribunal", label: "Tribunal" },
+  { key: "dni", label: "DNI" },
+  { key: "deudor", label: "Deudor" },
+  { key: "demandante", label: "Demandante" },
+  { key: "motivo", label: "Motivo" }
 ];
 
 const updatePayloadFields = [
@@ -92,6 +105,7 @@ function ConsultarPage() {
 
   const hasResults = resultados.length > 0;
   const registroActual = useMemo(() => resultados[indiceActual] || null, [resultados, indiceActual]);
+  const isExternalResult = Boolean(registroActual?.isExternalResult);
   useEffect(() => {
     return () => {
       if (updateTimeoutRef.current) {
@@ -244,6 +258,37 @@ function ConsultarPage() {
     setMensajeValidacion("");
 
     try {
+      const externalQuery = new URLSearchParams({ dni, nombre, apellido });
+      const externalResponse = await fetch(`${EXTERNAL_SEARCH_API_URL}?${externalQuery.toString()}`);
+      const externalBody = await externalResponse.json();
+      const externalData = Array.isArray(externalBody?.contenido) ? externalBody.contenido : [];
+      const externalFound =
+        externalResponse.ok &&
+        externalBody?.flag === true &&
+        String(externalBody?.esDeudor || "").trim().toUpperCase() === "SÍ" &&
+        externalData.length > 0;
+
+      if (externalFound) {
+        const normalizedExternalData = externalData.map((item, index) => ({
+          id: item?.id ?? item?.registro ?? index,
+          provincia: String(item?.provincia ?? "").toUpperCase(),
+          tribunal: String(item?.juzgado ?? "").toUpperCase(),
+          dni: String(item?.dni ?? ""),
+          deudor: String(item?.deudor ?? "").toUpperCase(),
+          demandante: String(item?.actor ?? "").toUpperCase(),
+          motivo: String(item?.sobre ?? "").toUpperCase(),
+          isExternalResult: true
+        }));
+
+        setResultados(normalizedExternalData);
+        setIndiceActual(0);
+        setNoResultados(false);
+        setMensajeBusqueda("");
+        setIsEditing(false);
+        setInvalidDetailFields([]);
+        return;
+      }
+
       const query = new URLSearchParams({ dni, nombre, apellido });
       const response = await fetch(`${API_URL}?${query.toString()}`);
       const body = await response.json();
@@ -525,13 +570,18 @@ function ConsultarPage() {
     setShowDeleteModal(false);
 
     try {
-      const response = await fetch(`${API_URL}/${deletingId}`, {
+      const deleteUrl = isExternalResult
+        ? `${EXTERNAL_DELETE_API_URL}/${deletingId}`
+        : `${API_URL}/${deletingId}`;
+      const response = await fetch(deleteUrl, {
         method: "DELETE"
       });
       const body = await response.json();
 
-      if (!response.ok || !body?.flag) {
-        showValidationMessage(body?.message || "No se pudo eliminar el registro");
+      const deleteSuccess = response.ok && body?.flag;
+
+      if (!deleteSuccess) {
+        showValidationMessage(body?.message || body?.mensaje || "No se pudo eliminar el registro");
         return;
       }
 
@@ -663,7 +713,7 @@ function ConsultarPage() {
         {hasResults && registroActual && (
           <div className="search-card" id="bloqueDetalle">
             <div className="search-title">
-              <span>Detalle del Registro</span>
+              <span>{isExternalResult ? "Resultado de Consulta" : "Detalle del Registro"}</span>
             </div>
 
             <div className="paginacion-container" id="paginacion">
@@ -692,7 +742,7 @@ function ConsultarPage() {
               key={registroActual.id ?? indiceActual}
               className={`detalle-paginado detalle-${direccionPaginacion}`}
             >
-              {detailFields.map((field) => (
+              {(isExternalResult ? externalDetailFields : detailFields).map((field) => (
                 <React.Fragment key={field.key}>
                   <div className="form-group">
                     <label className={invalidDetailFields.includes(field.key) ? "label-invalido" : ""}>
@@ -704,6 +754,7 @@ function ConsultarPage() {
                       value={registroActual[field.key] ?? ""}
                       onChange={handleDetailChange}
                       readOnly={
+                        isExternalResult ||
                         !isEditing ||
                         (field.key === "dniDeudor"
                           ? !sexoDeudorEdit
@@ -714,7 +765,7 @@ function ConsultarPage() {
                       className={invalidDetailFields.includes(field.key) ? "input-invalido" : ""}
                     />
                   </div>
-                  {field.key === "tribunal" && isEditing && (
+                  {field.key === "tribunal" && isEditing && !isExternalResult && (
                     <div className="form-group form-group-radio">
                       <label className={invalidDetailFields.includes("sexoDeudor") ? "label-invalido" : ""}>
                         Sexo:
@@ -768,7 +819,7 @@ function ConsultarPage() {
                       </div>
                     </div>
                   )}
-                  {field.key === "tipoDocDemandante" && isEditing && (
+                  {field.key === "tipoDocDemandante" && isEditing && !isExternalResult && (
                     <div className="form-group form-group-radio">
                       <label className={invalidDetailFields.includes("sexoDemandante") ? "label-invalido" : ""}>
                         Sexo:
@@ -864,7 +915,7 @@ function ConsultarPage() {
 
             {!showDeleteModal && (
               <div className="botones-form" style={{ marginTop: 30 }}>
-              {!isEditing && (
+              {!isEditing && !isExternalResult && (
                 <button type="button" onClick={() => setIsEditing(true)}>
                   Modificar datos
                 </button>
@@ -874,7 +925,7 @@ function ConsultarPage() {
                   Eliminar deudor
                 </button>
               )}
-              {isEditing && (
+              {isEditing && !isExternalResult && (
                 <button type="button" onClick={handleGuardarCambios}>
                   Guardar datos
                 </button>
