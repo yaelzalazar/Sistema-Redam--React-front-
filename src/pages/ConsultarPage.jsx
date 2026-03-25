@@ -76,17 +76,28 @@ const nonEditableFields = [
   "dniDemandante"
 ];
 
+const normalizeYesNo = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+
 function ConsultarPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState(searchInitial);
   const [resultados, setResultados] = useState([]);
+  const [externalResultados, setExternalResultados] = useState([]);
   const [indiceActual, setIndiceActual] = useState(0);
+  const [externalIndiceActual, setExternalIndiceActual] = useState(0);
+  const [visualPageIndex, setVisualPageIndex] = useState(0);
   const [noResultados, setNoResultados] = useState(false);
   const [mensajeBusqueda, setMensajeBusqueda] = useState("");
   const [mensajeValidacion, setMensajeValidacion] = useState("");
   const [invalidSearchFields, setInvalidSearchFields] = useState([]);
   const [invalidDetailFields, setInvalidDetailFields] = useState([]);
   const [direccionPaginacion, setDireccionPaginacion] = useState("siguiente");
+  const [direccionPaginacionExterna, setDireccionPaginacionExterna] = useState("siguiente");
   const [isLeaving, setIsLeaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [sexoDeudorEdit, setSexoDeudorEdit] = useState("");
@@ -96,16 +107,42 @@ function ConsultarPage() {
   const [isCheckingDemandanteRenaper, setIsCheckingDemandanteRenaper] = useState(false);
   const [isDemandanteRenaperValidated, setIsDemandanteRenaperValidated] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showExternalDeleteModal, setShowExternalDeleteModal] = useState(false);
   const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
+  const [showExternalDeleteSuccess, setShowExternalDeleteSuccess] = useState(false);
   const updateTimeoutRef = useRef(null);
   const deleteTimeoutRef = useRef(null);
+  const externalDeleteTimeoutRef = useRef(null);
   const leaveTimeoutRef = useRef(null);
   const validationTimeoutRef = useRef(null);
 
   const hasResults = resultados.length > 0;
+  const hasExternalResults = externalResultados.length > 0;
+  const hasAnyResults = hasResults || hasExternalResults;
+  const combinedPages = useMemo(
+    () => [
+      ...externalResultados.map((item, index) => ({
+        source: "external",
+        index,
+        id: item?.id ?? `external-${index}`
+      })),
+      ...resultados.map((item, index) => ({
+        source: "internal",
+        index,
+        id: item?.id ?? `internal-${index}`
+      }))
+    ],
+    [externalResultados, resultados]
+  );
+  const currentPage = useMemo(() => combinedPages[visualPageIndex] || null, [combinedPages, visualPageIndex]);
+  const showingExternal = currentPage?.source === "external";
+  const showingInternal = currentPage?.source === "internal";
   const registroActual = useMemo(() => resultados[indiceActual] || null, [resultados, indiceActual]);
-  const isExternalResult = Boolean(registroActual?.isExternalResult);
+  const externalRegistroActual = useMemo(
+    () => externalResultados[externalIndiceActual] || null,
+    [externalResultados, externalIndiceActual]
+  );
   useEffect(() => {
     return () => {
       if (updateTimeoutRef.current) {
@@ -113,6 +150,9 @@ function ConsultarPage() {
       }
       if (deleteTimeoutRef.current) {
         clearTimeout(deleteTimeoutRef.current);
+      }
+      if (externalDeleteTimeoutRef.current) {
+        clearTimeout(externalDeleteTimeoutRef.current);
       }
       if (leaveTimeoutRef.current) {
         clearTimeout(leaveTimeoutRef.current);
@@ -122,6 +162,29 @@ function ConsultarPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (combinedPages.length === 0) {
+      setVisualPageIndex(0);
+      return;
+    }
+
+    setVisualPageIndex((prev) => Math.min(prev, combinedPages.length - 1));
+  }, [combinedPages.length]);
+
+  useEffect(() => {
+    if (!currentPage) {
+      return;
+    }
+
+    if (currentPage.source === "external" && externalIndiceActual !== currentPage.index) {
+      setExternalIndiceActual(currentPage.index);
+    }
+
+    if (currentPage.source === "internal" && indiceActual !== currentPage.index) {
+      setIndiceActual(currentPage.index);
+    }
+  }, [currentPage, externalIndiceActual, indiceActual]);
 
   useEffect(() => {
     setSexoDeudorEdit("");
@@ -218,6 +281,38 @@ function ConsultarPage() {
     setIndiceActual((prev) => prev + 1);
   };
 
+  const handlePaginaAnteriorVisual = () => {
+    const nextPage = combinedPages[visualPageIndex - 1];
+    if (!nextPage) {
+      return;
+    }
+
+    if (nextPage.source === "external") {
+      setDireccionPaginacionExterna("anterior");
+    } else {
+      setDireccionPaginacion("anterior");
+    }
+
+    setVisualPageIndex((prev) => prev - 1);
+    setIsEditing(false);
+  };
+
+  const handlePaginaSiguienteVisual = () => {
+    const nextPage = combinedPages[visualPageIndex + 1];
+    if (!nextPage) {
+      return;
+    }
+
+    if (nextPage.source === "external") {
+      setDireccionPaginacionExterna("siguiente");
+    } else {
+      setDireccionPaginacion("siguiente");
+    }
+
+    setVisualPageIndex((prev) => prev + 1);
+    setIsEditing(false);
+  };
+
   const handleVolver = () => {
     setIsLeaving(true);
 
@@ -256,70 +351,75 @@ function ConsultarPage() {
     setNoResultados(false);
     setMensajeBusqueda("");
     setMensajeValidacion("");
+    setShowDeleteModal(false);
+    setShowExternalDeleteModal(false);
 
     try {
       const externalQuery = new URLSearchParams({ dni, nombre, apellido });
-      const externalResponse = await fetch(`${EXTERNAL_SEARCH_API_URL}?${externalQuery.toString()}`);
-      const externalBody = await externalResponse.json();
+      const query = new URLSearchParams({ dni, nombre, apellido });
+      const [externalResponse, response] = await Promise.all([
+        fetch(`${EXTERNAL_SEARCH_API_URL}?${externalQuery.toString()}`),
+        fetch(`${API_URL}?${query.toString()}`)
+      ]);
+      const [externalBody, body] = await Promise.all([
+        externalResponse.json(),
+        response.json()
+      ]);
       const externalData = Array.isArray(externalBody?.contenido) ? externalBody.contenido : [];
       const externalFound =
         externalResponse.ok &&
         externalBody?.flag === true &&
-        String(externalBody?.esDeudor || "").trim().toUpperCase() === "SÍ" &&
+        normalizeYesNo(externalBody?.esDeudor) === "SI" &&
         externalData.length > 0;
-
-      if (externalFound) {
-        const normalizedExternalData = externalData.map((item, index) => ({
-          id: item?.id ?? item?.registro ?? index,
-          provincia: String(item?.provincia ?? "").toUpperCase(),
-          tribunal: String(item?.juzgado ?? "").toUpperCase(),
-          dni: String(item?.dni ?? ""),
-          deudor: String(item?.deudor ?? "").toUpperCase(),
-          demandante: String(item?.actor ?? "").toUpperCase(),
-          motivo: String(item?.sobre ?? "").toUpperCase(),
-          isExternalResult: true
-        }));
-
-        setResultados(normalizedExternalData);
-        setIndiceActual(0);
-        setNoResultados(false);
-        setMensajeBusqueda("");
-        setIsEditing(false);
-        setInvalidDetailFields([]);
-        return;
-      }
-
-      const query = new URLSearchParams({ dni, nombre, apellido });
-      const response = await fetch(`${API_URL}?${query.toString()}`);
-      const body = await response.json();
+      const normalizedExternalData = externalFound
+        ? externalData.map((item, index) => ({
+            id: item?.id ?? item?.registro ?? index,
+            provincia: String(item?.provincia ?? "").toUpperCase(),
+            tribunal: String(item?.juzgado ?? "").toUpperCase(),
+            dni: String(item?.dni ?? ""),
+            deudor: String(item?.deudor ?? "").toUpperCase(),
+            demandante: String(item?.actor ?? "").toUpperCase(),
+            motivo: String(item?.sobre ?? "").toUpperCase()
+          }))
+        : [];
       const data = Array.isArray(body?.data) ? body.data : [];
       const isSuccess = response.ok && body?.flag && Number(body?.status) === 200;
+
+      setExternalResultados(normalizedExternalData);
+      setExternalIndiceActual(0);
+      setVisualPageIndex(0);
 
       if (!isSuccess || data.length === 0) {
         setResultados([]);
         setIndiceActual(0);
-        setNoResultados(true);
-        setMensajeBusqueda(body?.message || "No se han encontrado resultados");
+        const nothingFound = normalizedExternalData.length === 0;
+        setNoResultados(nothingFound);
+        setMensajeBusqueda(
+          nothingFound ? body?.message || body?.mensaje || "No se han encontrado resultados" : ""
+        );
         setIsEditing(false);
         return;
       }
 
       setResultados(data);
       setIndiceActual(0);
+      setVisualPageIndex(0);
       setNoResultados(false);
       setMensajeBusqueda("");
       setIsEditing(false);
       setInvalidDetailFields([]);
     } catch {
       setResultados([]);
+      setExternalResultados([]);
       setIndiceActual(0);
+      setExternalIndiceActual(0);
+      setVisualPageIndex(0);
       setNoResultados(true);
       setMensajeBusqueda("Error al conectar con el servidor");
       setIsEditing(false);
       setInvalidDetailFields([]);
     }
   };
-
   const handleGuardarCambios = async () => {
     if (!registroActual) {
       return;
@@ -570,17 +670,12 @@ function ConsultarPage() {
     setShowDeleteModal(false);
 
     try {
-      const deleteUrl = isExternalResult
-        ? `${EXTERNAL_DELETE_API_URL}/${deletingId}`
-        : `${API_URL}/${deletingId}`;
-      const response = await fetch(deleteUrl, {
+      const response = await fetch(`${API_URL}/${deletingId}`, {
         method: "DELETE"
       });
       const body = await response.json();
 
-      const deleteSuccess = response.ok && body?.flag;
-
-      if (!deleteSuccess) {
+      if (!(response.ok && body?.flag)) {
         showValidationMessage(body?.message || body?.mensaje || "No se pudo eliminar el registro");
         return;
       }
@@ -598,13 +693,70 @@ function ConsultarPage() {
         if (nuevos.length === 0) {
           setIndiceActual(0);
           setIsEditing(false);
+          if (!hasExternalResults) {
+            setNoResultados(true);
+          }
           return nuevos;
         }
         setIndiceActual((old) => (old >= nuevos.length ? nuevos.length - 1 : old));
         return nuevos;
       });
     } catch {
-      alert("Error al conectar con el servidor");
+      showValidationMessage("Error al conectar con el servidor");
+    }
+  };
+
+  const handlePaginaAnteriorExterna = () => {
+    setDireccionPaginacionExterna("anterior");
+    setExternalIndiceActual((prev) => prev - 1);
+  };
+
+  const handlePaginaSiguienteExterna = () => {
+    setDireccionPaginacionExterna("siguiente");
+    setExternalIndiceActual((prev) => prev + 1);
+  };
+
+  const handleConfirmarEliminarExterno = async () => {
+    if (!externalRegistroActual) {
+      return;
+    }
+
+    const deletingId = externalRegistroActual.id;
+    setShowExternalDeleteModal(false);
+
+    try {
+      const response = await fetch(`${EXTERNAL_DELETE_API_URL}/${deletingId}`, {
+        method: "DELETE"
+      });
+      const body = await response.json();
+
+      if (!(response.ok && body?.flag)) {
+        showValidationMessage(body?.message || body?.mensaje || "No se pudo eliminar el deudor");
+        return;
+      }
+
+      setShowExternalDeleteSuccess(true);
+      if (externalDeleteTimeoutRef.current) {
+        clearTimeout(externalDeleteTimeoutRef.current);
+      }
+      externalDeleteTimeoutRef.current = setTimeout(() => {
+        setShowExternalDeleteSuccess(false);
+      }, 5000);
+
+      setExternalResultados((prev) => {
+        const nuevos = prev.filter((item) => item.id !== deletingId);
+        if (nuevos.length === 0) {
+          setExternalIndiceActual(0);
+          if (!hasResults) {
+            setNoResultados(true);
+          }
+          return nuevos;
+        }
+        setExternalIndiceActual((old) => (old >= nuevos.length ? nuevos.length - 1 : old));
+        return nuevos;
+      });
+    } catch {
+      showValidationMessage("Error al conectar con el servidor");
     }
   };
 
@@ -635,7 +787,7 @@ function ConsultarPage() {
           </div>
         </div>
 
-        {!hasResults && (
+        {!hasAnyResults && (
           <div className="search-card" id="bloqueBusqueda">
             <div className="search-title">
               <img src="/img/datos.png" alt="Buscar" />
@@ -710,29 +862,100 @@ function ConsultarPage() {
           </div>
         )}
 
-        {hasResults && registroActual && (
+        {showingExternal && externalRegistroActual && (
+          <div className="search-card" id="bloqueDetalleExterno">
+            <div className="search-title">
+              <span>Resultado de Consulta Externa</span>
+            </div>
+
+            <div className="paginacion-container">
+              <button
+                type="button"
+                className="btn-paginacion"
+                onClick={handlePaginaAnteriorVisual}
+                disabled={visualPageIndex === 0}
+              >
+                &#10094;
+              </button>
+              <span className="contador-paginacion">
+                Resultado {visualPageIndex + 1} de {combinedPages.length}
+              </span>
+              <button
+                type="button"
+                className="btn-paginacion"
+                onClick={handlePaginaSiguienteVisual}
+                disabled={visualPageIndex === combinedPages.length - 1}
+              >
+                &#10095;
+              </button>
+            </div>
+
+            <div
+              key={`externo-${externalRegistroActual.id ?? externalIndiceActual}`}
+              className={`detalle-paginado detalle-${direccionPaginacionExterna}`}
+            >
+              {externalDetailFields.map((field) => (
+                <div className="form-group" key={field.key}>
+                  <label>{field.label}:</label>
+                  <input type="text" value={externalRegistroActual[field.key] ?? ""} readOnly />
+                </div>
+              ))}
+            </div>
+
+            {showExternalDeleteModal && (
+              <div className="mensaje-no-resultados" style={{ marginTop: 20 }}>
+                <div className="mensaje-contenido error">
+                  <div className="icono-resultado">⚠</div>
+                  <h3>Esta seguro que desea eliminar este deudor?</h3>
+                  <p>Esta accion no se puede deshacer.</p>
+                  <div style={{ marginTop: 20, display: "flex", justifyContent: "center", gap: 15 }}>
+                    <button type="button" onClick={handleConfirmarEliminarExterno}>
+                      Si, eliminar
+                    </button>
+                    <button type="button" onClick={() => setShowExternalDeleteModal(false)}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!showExternalDeleteModal && (
+              <div className="botones-form" style={{ marginTop: 30 }}>
+                <button type="button" onClick={() => setShowExternalDeleteModal(true)}>
+                  Eliminar deudor
+                </button>
+                <button type="button" onClick={handleVolver}>
+                  Volver
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {showingInternal && registroActual && (
           <div className="search-card" id="bloqueDetalle">
             <div className="search-title">
-              <span>{isExternalResult ? "Resultado de Consulta" : "Detalle del Registro"}</span>
+              <span>Detalle del Registro</span>
             </div>
 
             <div className="paginacion-container" id="paginacion">
               <button
                 type="button"
                 className="btn-paginacion"
-                onClick={handlePaginaAnterior}
-                disabled={indiceActual === 0}
+                onClick={handlePaginaAnteriorVisual}
+                disabled={visualPageIndex === 0}
               >
                 &#10094;
               </button>
               <span className="contador-paginacion">
-                Resultado {indiceActual + 1} de {resultados.length}
+                Resultado {visualPageIndex + 1} de {combinedPages.length}
               </span>
               <button
                 type="button"
                 className="btn-paginacion"
-                onClick={handlePaginaSiguiente}
-                disabled={indiceActual === resultados.length - 1}
+                onClick={handlePaginaSiguienteVisual}
+                disabled={visualPageIndex === combinedPages.length - 1}
               >
                 &#10095;
               </button>
@@ -742,7 +965,7 @@ function ConsultarPage() {
               key={registroActual.id ?? indiceActual}
               className={`detalle-paginado detalle-${direccionPaginacion}`}
             >
-              {(isExternalResult ? externalDetailFields : detailFields).map((field) => (
+              {detailFields.map((field) => (
                 <React.Fragment key={field.key}>
                   <div className="form-group">
                     <label className={invalidDetailFields.includes(field.key) ? "label-invalido" : ""}>
@@ -754,7 +977,6 @@ function ConsultarPage() {
                       value={registroActual[field.key] ?? ""}
                       onChange={handleDetailChange}
                       readOnly={
-                        isExternalResult ||
                         !isEditing ||
                         (field.key === "dniDeudor"
                           ? !sexoDeudorEdit
@@ -765,7 +987,7 @@ function ConsultarPage() {
                       className={invalidDetailFields.includes(field.key) ? "input-invalido" : ""}
                     />
                   </div>
-                  {field.key === "tribunal" && isEditing && !isExternalResult && (
+                  {field.key === "tribunal" && isEditing && (
                     <div className="form-group form-group-radio">
                       <label className={invalidDetailFields.includes("sexoDeudor") ? "label-invalido" : ""}>
                         Sexo:
@@ -819,7 +1041,7 @@ function ConsultarPage() {
                       </div>
                     </div>
                   )}
-                  {field.key === "tipoDocDemandante" && isEditing && !isExternalResult && (
+                  {field.key === "tipoDocDemandante" && isEditing && (
                     <div className="form-group form-group-radio">
                       <label className={invalidDetailFields.includes("sexoDemandante") ? "label-invalido" : ""}>
                         Sexo:
@@ -915,26 +1137,36 @@ function ConsultarPage() {
 
             {!showDeleteModal && (
               <div className="botones-form" style={{ marginTop: 30 }}>
-              {!isEditing && !isExternalResult && (
-                <button type="button" onClick={() => setIsEditing(true)}>
-                  Modificar datos
+                {!isEditing && (
+                  <button type="button" onClick={() => setIsEditing(true)}>
+                    Modificar datos
+                  </button>
+                )}
+                {!isEditing && (
+                  <button type="button" onClick={() => setShowDeleteModal(true)}>
+                    Eliminar deudor
+                  </button>
+                )}
+                {isEditing && (
+                  <button type="button" onClick={handleGuardarCambios}>
+                    Guardar datos
+                  </button>
+                )}
+                <button type="button" onClick={handleVolver}>
+                  Volver
                 </button>
-              )}
-              {!isEditing && (
-                <button type="button" onClick={() => setShowDeleteModal(true)}>
-                  Eliminar deudor
-                </button>
-              )}
-              {isEditing && !isExternalResult && (
-                <button type="button" onClick={handleGuardarCambios}>
-                  Guardar datos
-                </button>
-              )}
-              <button type="button" onClick={handleVolver}>
-                Volver
-              </button>
               </div>
             )}
+          </div>
+        )}
+
+        {showExternalDeleteSuccess && (
+          <div className="mensaje-no-resultados" style={{ marginTop: 20 }}>
+            <div className="mensaje-contenido exito">
+              <div className="icono-resultado">🗑</div>
+              <h3>Registro eliminado correctamente</h3>
+              <p>El deudor seleccionado fue eliminado del servicio externo.</p>
+            </div>
           </div>
         )}
 
@@ -953,3 +1185,4 @@ function ConsultarPage() {
 }
 
 export default ConsultarPage;
+

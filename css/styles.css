@@ -393,6 +393,10 @@ body {
 #bloqueDetalle .form-group {
     margin-bottom: 18px;
 }
+#bloqueDetalleExterno .form-group {
+    margin-bottom: 18px;
+}
+
 
 .detalle-paginado {
     position: relative;
@@ -1095,3 +1099,5 @@ button:disabled {
     font-size: 13px;
     color: #7a5a57;
 }
+
+
