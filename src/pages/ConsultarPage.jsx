@@ -382,8 +382,17 @@ function ConsultarPage() {
             motivo: String(item?.sobre ?? "").toUpperCase()
           }))
         : [];
-      const data = Array.isArray(body?.data) ? body.data : [];
-      const isSuccess = response.ok && body?.flag && Number(body?.status) === 200;
+      const internalContenido = Array.isArray(body?.contenido) ? body.contenido : [];
+      const internalData = Array.isArray(body?.data) ? body.data : [];
+      const data = internalContenido.length > 0 ? internalContenido : internalData;
+      const internalFoundByContenido =
+        response.ok &&
+        body?.flag === true &&
+        normalizeYesNo(body?.esDeudor) === "SI" &&
+        internalContenido.length > 0;
+      const internalFoundByData =
+        response.ok && body?.flag === true && Number(body?.status) === 200 && internalData.length > 0;
+      const isSuccess = internalFoundByContenido || internalFoundByData;
 
       setExternalResultados(normalizedExternalData);
       setExternalIndiceActual(0);
